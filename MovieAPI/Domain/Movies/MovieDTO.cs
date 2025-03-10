@@ -10,5 +10,8 @@
 
         public List<string> Genres { get; set; } = new List<string>();
         public List<string> Categories { get; set; } = new List<string>();
+        
+        public DateTime AddedAt { get; set; }
+
     }
 }

@@ -25,6 +25,9 @@ namespace MovieAPI.Domain.Movies
 
         public ICollection<MovieGenre> MovieGenres { get; set; } = new List<MovieGenre>();
         public ICollection<MovieCategory> MovieCategories { get; set; } = new List<MovieCategory>();
+        
+        public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
+
 
     }
 }

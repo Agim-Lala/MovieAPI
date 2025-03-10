@@ -15,6 +15,13 @@ namespace MovieAPI.Controllers
         {
             _movieService = movieService;
         }
+        
+        [HttpGet("new")]
+        public async Task<ActionResult<List<MovieDTO>>> GetNewMovies()
+        {
+            var movies = await _movieService.GetNewMoviesAsync();
+            return Ok(movies);
+        }
 
         [HttpGet]
         public async Task<ActionResult<List<MovieDTO>>> GetMovies()

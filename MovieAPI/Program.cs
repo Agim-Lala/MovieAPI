@@ -21,6 +21,7 @@ builder.Services.AddOpenApi();
 //builder.Services.AddScoped<GenresService>();
 //builder.Services.AddScoped<DirectorService>();
 var servicesAssembly = Assembly.GetExecutingAssembly();
+
 var serviceTypes = servicesAssembly.GetTypes()
     .Where(t => t.IsClass && t.Namespace == "MovieAPI.Services");
 
@@ -44,10 +45,10 @@ if (app.Environment.IsDevelopment())
 
 }
 
-app.MapMovieEndpoints();
-app.MapDirectorEndpoint();
-app.MapGenreEndpoint();
-app.MapCategoryEndpoint();
+//app.MapMovieEndpoints();
+//app.MapDirectorEndpoint();
+//app.MapGenreEndpoint();
+//app.MapCategoryEndpoint();
 
 app.UseHttpsRedirection();
 

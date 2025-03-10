@@ -15,8 +15,19 @@ namespace MovieAPI.Services
         {
             _context = context;
         }
+        
+        
+        public async Task<List<MovieDTO>> GetNewMoviesAsync()
+        {
+            var movies = await _context.Movies
+                .OrderByDescending(m => m.AddedAt) 
+                .Include(m => m.Director)
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .ToListAsync();
 
-
+            return movies.Select(MapToDTO).ToList();
+        }
         public async Task<List<MovieDTO>> GetAllMoviesAsync()
         {
             var movies = await _context.Movies
@@ -29,18 +40,7 @@ namespace MovieAPI.Services
                 .Include(m => m.Director)
                 .ToListAsync();
 
-            var movieDTOs = movies.Select(m => new MovieDTO
-            {
-                MovieId = m.MovieId,
-                Title = m.Title,
-                ReleaseYear = m.ReleaseYear,
-                Description = m.Description,
-                DirectorName = m.Director.Name,
-                Genres = m.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
-                Categories = m.MovieCategories.Select(mc => mc.Category.Name).ToList()
-            }).ToList();
-
-            return movieDTOs;
+            return movies.Select(MapToDTO).ToList();
         }
 
         public async Task<MovieDTO?> GetMovieByIdAsync(int movieId)
@@ -82,6 +82,7 @@ namespace MovieAPI.Services
                 DirectorId = movieDTO.DirectorId,
                 MovieGenres = movieGenres,
                 MovieCategories = movieCategories,
+                AddedAt = DateTime.UtcNow,
             };
 
             _context.Movies.Add(movie);
@@ -96,7 +97,9 @@ namespace MovieAPI.Services
                 Description = movie.Description,
                 DirectorName = director.Name,
                 Genres = genres.Select(g => g.Name).ToList(),
-                Categories = categories.Select(c => c.Name).ToList()
+                Categories = categories.Select(c => c.Name).ToList(),
+                AddedAt =movie.AddedAt,
+                
             };
         }
         
@@ -206,7 +209,8 @@ namespace MovieAPI.Services
             Description = movie.Description,
             DirectorName = movie.Director.Name,
             Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
-            Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList()
+            Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
+            AddedAt = movie.AddedAt
         };
         
 
