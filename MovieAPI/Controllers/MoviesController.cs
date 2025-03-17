@@ -17,9 +17,11 @@ namespace MovieAPI.Controllers
         }
         
         [HttpGet("new")]
-        public async Task<ActionResult<List<MovieDTO>>> GetNewMovies()
+        public async Task<ActionResult<List<MovieDTO>>> GetNewMovies([FromQuery] int page = 1, [FromQuery] int pageSize = 5)
         {
-            var movies = await _movieService.GetNewMoviesAsync();
+            if (page < 1 || pageSize < 1) return BadRequest("Page and pageSize must be greater than 0.");
+
+            var movies = await _movieService.GetNewMoviesAsync(page, pageSize);
             return Ok(movies);
         }
 

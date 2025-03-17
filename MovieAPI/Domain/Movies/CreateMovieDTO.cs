@@ -20,6 +20,8 @@ namespace MovieAPI.Domain.Movies
         public List<int> CategoryIds { get; set; } = new List<int>();
         
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
+        
+        public string ImagePath { get; set; }
 
     }
 }

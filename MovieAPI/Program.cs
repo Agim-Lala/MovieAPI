@@ -31,7 +31,14 @@ foreach (var serviceType in serviceTypes)
 }
 
 
+
 var app = builder.Build();
+
+app.UseCors(options => options.SetIsOriginAllowedToAllowWildcardSubdomains()
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader());
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -49,6 +56,8 @@ if (app.Environment.IsDevelopment())
 //app.MapDirectorEndpoint();
 //app.MapGenreEndpoint();
 //app.MapCategoryEndpoint();
+
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 

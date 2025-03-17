@@ -17,13 +17,15 @@ namespace MovieAPI.Services
         }
         
         
-        public async Task<List<MovieDTO>> GetNewMoviesAsync()
+        public async Task<List<MovieDTO>> GetNewMoviesAsync(int page, int pageSize)
         {
             var movies = await _context.Movies
                 .OrderByDescending(m => m.AddedAt) 
                 .Include(m => m.Director)
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -32,7 +34,7 @@ namespace MovieAPI.Services
         {
             var movies = await _context.Movies
 
-
+                .OrderByDescending(m => m.ReleaseYear)
                 .Include(m => m.MovieGenres)
                 .ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories)
@@ -73,6 +75,8 @@ namespace MovieAPI.Services
 
             var movieGenres = genres.Select(g => new MovieGenre { GenreId = g.GenreId }).ToList();
             var movieCategories = categories.Select(c => new MovieCategory { CategoryId = c.CategoryId }).ToList();
+            
+            
 
             var movie = new Movie
             {
@@ -157,6 +161,7 @@ namespace MovieAPI.Services
         {
             var movies = await _context.Movies
                 .Where(m => m.MovieCategories.Any(mc => mc.CategoryId == categoryId))
+                .OrderByDescending(m => m.ReleaseYear)
                 .Include(m => m.Director)
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
@@ -201,6 +206,25 @@ namespace MovieAPI.Services
             return movies.Select(MapToDTO).ToList();
         }
         
+        public async Task<string> UploadImageAsync(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                throw new Exception("Invalid image upload.");
+
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
+            Directory.CreateDirectory(uploadsFolder); 
+
+            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return $"/images/{uniqueFileName}"; 
+        }
+        
         private MovieDTO MapToDTO(Movie movie) => new MovieDTO
         {
             MovieId = movie.MovieId,
@@ -210,7 +234,8 @@ namespace MovieAPI.Services
             DirectorName = movie.Director.Name,
             Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
             Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
-            AddedAt = movie.AddedAt
+            AddedAt = movie.AddedAt,
+            ImagePath = movie.ImagePath,
         };
         
 

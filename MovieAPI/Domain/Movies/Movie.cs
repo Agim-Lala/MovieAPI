@@ -27,6 +27,8 @@ namespace MovieAPI.Domain.Movies
         public ICollection<MovieCategory> MovieCategories { get; set; } = new List<MovieCategory>();
         
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
+        
+        public string ImagePath { get; set; }
 
 
     }

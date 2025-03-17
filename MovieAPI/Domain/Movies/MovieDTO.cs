@@ -12,6 +12,8 @@
         public List<string> Categories { get; set; } = new List<string>();
         
         public DateTime AddedAt { get; set; }
+        
+        public string ImagePath { get; set; }
 
     }
 }
