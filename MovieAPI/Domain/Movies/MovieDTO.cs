@@ -10,6 +10,9 @@
 
         public List<string> Genres { get; set; } = new List<string>();
         public List<string> Categories { get; set; } = new List<string>();
+        public List<string> Qualities { get; set; } = new List<string>();
+        public List<int> QualityIds { get; set; } = new List<int>(); 
+
         
         public DateTime AddedAt { get; set; }
         

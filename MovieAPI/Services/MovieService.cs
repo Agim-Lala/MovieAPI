@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MovieAPI.Context;
 using MovieAPI.Domain.Categories;
-using MovieAPI.Domain.Directors;
 using MovieAPI.Domain.Genres;
 using MovieAPI.Domain.Movies;
+using MovieAPI.Domain.Qualities;
 
 namespace MovieAPI.Services
 {
@@ -39,6 +39,8 @@ namespace MovieAPI.Services
                 .ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories)
                 .ThenInclude(mc => mc.Category)
+                .Include(m => m.MovieQualities)
+                .ThenInclude(mq => mq.Quality)
                 .Include(m => m.Director)
                 .ToListAsync();
 
@@ -56,8 +58,13 @@ namespace MovieAPI.Services
                     ReleaseYear = m.ReleaseYear,
                     Description = m.Description,
                     DirectorName = m.Director.Name,
+                    ImagePath = m.ImagePath,
+                    AddedAt = m.AddedAt,
                     Genres = m.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
-                    Categories = m.MovieCategories.Select(mc => mc.Category.Name).ToList()
+                    Categories = m.MovieCategories.Select(mc => mc.Category.Name).ToList(),
+                    Qualities = m.MovieQualities.Select(mq => mq.Quality.QualityName).ToList(),
+                    
+                    
                 })
                 .FirstOrDefaultAsync();
         }
@@ -72,9 +79,15 @@ namespace MovieAPI.Services
 
             var categories = await _context.Categories.Where(c => movieDTO.CategoryIds.Contains(c.CategoryId)).ToListAsync();
             if (categories.Count != movieDTO.CategoryIds.Count) throw new Exception("One or more categories are invalid");
+            
+            var qualities = await _context.Qualities.Where(q => movieDTO.QualityIds.Contains(q.QualityId)).ToListAsync();
+            if (qualities.Count != movieDTO.QualityIds.Count) throw new Exception("One or more qualities are invalid");
+            
 
             var movieGenres = genres.Select(g => new MovieGenre { GenreId = g.GenreId }).ToList();
             var movieCategories = categories.Select(c => new MovieCategory { CategoryId = c.CategoryId }).ToList();
+            var movieQualities = qualities.Select(q => new MovieQuality { QualityId = q.QualityId }).ToList(); 
+
             
             
 
@@ -86,7 +99,10 @@ namespace MovieAPI.Services
                 DirectorId = movieDTO.DirectorId,
                 MovieGenres = movieGenres,
                 MovieCategories = movieCategories,
+                MovieQualities = movieQualities,
                 AddedAt = DateTime.UtcNow,
+                ImagePath = movieDTO.ImagePath 
+
             };
 
             _context.Movies.Add(movie);
@@ -102,7 +118,10 @@ namespace MovieAPI.Services
                 DirectorName = director.Name,
                 Genres = genres.Select(g => g.Name).ToList(),
                 Categories = categories.Select(c => c.Name).ToList(),
+                Qualities = qualities.Select(q => q.QualityName).ToList(),
                 AddedAt =movie.AddedAt,
+                ImagePath = movie.ImagePath 
+
                 
             };
         }
@@ -206,6 +225,46 @@ namespace MovieAPI.Services
             return movies.Select(MapToDTO).ToList();
         }
         
+        public async Task<List<MovieDTO>> GetFilteredMoviesAsync(int? genreId, int? startYear, int? endYear, int? qualityId)
+        {
+            Console.WriteLine($"Filters Received -> GenreID: {genreId}, StartYear: {startYear}, EndYear: {endYear} ,QualityId: {qualityId}");
+
+            var query = _context.Movies
+                .Include(m => m.Director)
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality) 
+                .AsQueryable();
+
+            if (genreId.HasValue)
+            {
+                query = query.Where(m => m.MovieGenres.Any(mg => mg.GenreId == genreId));
+            }
+
+            if (startYear.HasValue && endYear.HasValue)
+            {
+                query = query.Where(m => m.ReleaseYear >= startYear && m.ReleaseYear <= endYear);
+            }
+            else if (startYear.HasValue) 
+            {
+                query = query.Where(m => m.ReleaseYear >= startYear);
+            }
+            else if (endYear.HasValue)
+            {
+                query = query.Where(m => m.ReleaseYear <= endYear);
+            }
+            if (qualityId.HasValue)
+            {
+                query = query.Where(m => m.MovieQualities.Any(mq => mq.QualityId == qualityId));
+            }
+
+            var movies = await query.ToListAsync();
+
+            Console.WriteLine($"Movies Found After Filtering: {movies.Count}");
+
+            return movies.Select(MapToDTO).ToList();
+        }
+        
         public async Task<string> UploadImageAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -217,7 +276,7 @@ namespace MovieAPI.Services
             var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            await using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
@@ -234,6 +293,7 @@ namespace MovieAPI.Services
             DirectorName = movie.Director.Name,
             Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
             Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
+            Qualities = movie.MovieQualities?.Select(mq => mq.Quality?.QualityName).ToList() ?? new List<string>(),
             AddedAt = movie.AddedAt,
             ImagePath = movie.ImagePath,
         };

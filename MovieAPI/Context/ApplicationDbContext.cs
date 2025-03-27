@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection.Emit;
 using System.Xml.Linq;
+using MovieAPI.Domain.Qualities;
 
 namespace MovieAPI.Context
 {
@@ -21,6 +22,10 @@ namespace MovieAPI.Context
         public DbSet<MovieGenre> MovieGenres { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<MovieCategory> MovieCategories { get; set; }
+        
+        public DbSet<Quality> Qualities { get; set; } 
+        
+        public DbSet<MovieQuality> MovieQualities { get; set; }
 
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -28,6 +33,9 @@ namespace MovieAPI.Context
             modelBuilder.Entity<MovieGenre>().HasKey(mg => new { mg.MovieId, mg.GenreId });
 
             modelBuilder.Entity<MovieCategory>().HasKey(mc => new { mc.MovieId, mc.CategoryId });
+            
+            modelBuilder.Entity<MovieQuality>().HasKey(mq => new { mq.MovieId, mq.QualityId }); 
+
 
             modelBuilder.Entity<Movie>()
                 .HasOne(m => m.Director)

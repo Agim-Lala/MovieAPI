@@ -3,6 +3,7 @@ using System.IO;
 using MovieAPI.Domain.Categories;
 using MovieAPI.Domain.Directors;
 using MovieAPI.Domain.Genres;
+using MovieAPI.Domain.Qualities;
 
 namespace MovieAPI.Domain.Movies
 {
@@ -25,6 +26,8 @@ namespace MovieAPI.Domain.Movies
 
         public ICollection<MovieGenre> MovieGenres { get; set; } = new List<MovieGenre>();
         public ICollection<MovieCategory> MovieCategories { get; set; } = new List<MovieCategory>();
+        
+        public ICollection<MovieQuality> MovieQualities { get; set; } = new List<MovieQuality>();
         
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
         

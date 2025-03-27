@@ -106,6 +106,17 @@ namespace MovieAPI.Controllers
             var movies = await _movieService.GetMoviesByReleaseYearAsync(startYear, endYear);
             return Ok(movies);
         }
+        
+        [HttpGet("filter")]
+        public async Task<ActionResult<List<MovieDTO>>> GetFilteredMovies(
+            [FromQuery] int? genreId,
+            [FromQuery] int? startYear,
+            [FromQuery] int? endYear,
+            [FromQuery] int? qualityId) 
+        {
+            var movies = await _movieService.GetFilteredMoviesAsync(genreId, startYear, endYear, qualityId); 
+            return Ok(movies);
+        }
     }
 }
 
