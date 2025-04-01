@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.IO;
+using MovieAPI.Domain.Actors;
 using MovieAPI.Domain.Categories;
 using MovieAPI.Domain.Directors;
 using MovieAPI.Domain.Genres;
@@ -28,6 +29,8 @@ namespace MovieAPI.Domain.Movies
         public ICollection<MovieCategory> MovieCategories { get; set; } = new List<MovieCategory>();
         
         public ICollection<MovieQuality> MovieQualities { get; set; } = new List<MovieQuality>();
+        
+        public ICollection<MovieActor> MovieActors { get; set; } = new List<MovieActor>(); 
         
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
         

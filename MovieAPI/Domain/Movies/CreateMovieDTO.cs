@@ -19,7 +19,8 @@ namespace MovieAPI.Domain.Movies
         public List<int> GenreIds { get; set; } = new List<int>();
         public List<int> CategoryIds { get; set; } = new List<int>();
         public List<int> QualityIds { get; set; } = new List<int>(); 
-
+        
+        public List<int> ActorIds { get; set; } = new List<int>(); 
         
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
         

@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MovieAPI.Context;
+using MovieAPI.Domain.Actors;
 using MovieAPI.Domain.Categories;
 using MovieAPI.Domain.Genres;
 using MovieAPI.Domain.Movies;
@@ -42,6 +43,7 @@ namespace MovieAPI.Services
                 .Include(m => m.MovieQualities)
                 .ThenInclude(mq => mq.Quality)
                 .Include(m => m.Director)
+                .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor) 
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -49,24 +51,18 @@ namespace MovieAPI.Services
 
         public async Task<MovieDTO?> GetMovieByIdAsync(int movieId)
         {
-            return await _context.Movies
+            var movie = await _context.Movies
                 .Where(m => m.MovieId == movieId)
-                .Select(m => new MovieDTO
-                {
-                    MovieId = m.MovieId,
-                    Title = m.Title,
-                    ReleaseYear = m.ReleaseYear,
-                    Description = m.Description,
-                    DirectorName = m.Director.Name,
-                    ImagePath = m.ImagePath,
-                    AddedAt = m.AddedAt,
-                    Genres = m.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
-                    Categories = m.MovieCategories.Select(mc => mc.Category.Name).ToList(),
-                    Qualities = m.MovieQualities.Select(mq => mq.Quality.QualityName).ToList(),
-                    
-                    
-                })
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+                .Include(m => m.Director)
+                .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor) 
                 .FirstOrDefaultAsync();
+
+            if (movie == null) return null;
+
+            return MapToDTO(movie);
         }
 
         public async Task<MovieDTO> AddMovieAsync(CreateMovieDTO movieDTO)
@@ -83,12 +79,14 @@ namespace MovieAPI.Services
             var qualities = await _context.Qualities.Where(q => movieDTO.QualityIds.Contains(q.QualityId)).ToListAsync();
             if (qualities.Count != movieDTO.QualityIds.Count) throw new Exception("One or more qualities are invalid");
             
+            var actors = await _context.Actors.Where(a => movieDTO.ActorIds.Contains(a.ActorId)).ToListAsync();
+            if (actors.Count != movieDTO.ActorIds.Count) throw new Exception("One or more actors are invalid");
+            
 
             var movieGenres = genres.Select(g => new MovieGenre { GenreId = g.GenreId }).ToList();
             var movieCategories = categories.Select(c => new MovieCategory { CategoryId = c.CategoryId }).ToList();
             var movieQualities = qualities.Select(q => new MovieQuality { QualityId = q.QualityId }).ToList(); 
-
-            
+            var movieActors = actors.Select(a => new MovieActor { ActorId = a.ActorId }).ToList();
             
 
             var movie = new Movie
@@ -100,6 +98,7 @@ namespace MovieAPI.Services
                 MovieGenres = movieGenres,
                 MovieCategories = movieCategories,
                 MovieQualities = movieQualities,
+                MovieActors = movieActors,
                 AddedAt = DateTime.UtcNow,
                 ImagePath = movieDTO.ImagePath 
 
@@ -119,6 +118,7 @@ namespace MovieAPI.Services
                 Genres = genres.Select(g => g.Name).ToList(),
                 Categories = categories.Select(c => c.Name).ToList(),
                 Qualities = qualities.Select(q => q.QualityName).ToList(),
+                Actors = actors.Select(a => a.ActorName).ToList(),
                 AddedAt =movie.AddedAt,
                 ImagePath = movie.ImagePath 
 
@@ -131,6 +131,7 @@ namespace MovieAPI.Services
             var movie = await _context.Movies
                 .Include(m => m.MovieGenres)
                 .Include(m => m.MovieCategories)
+                .Include(m => m.MovieActors)
                 .FirstOrDefaultAsync(m => m.MovieId == id);
 
             if (movie == null) return false;
@@ -152,6 +153,11 @@ namespace MovieAPI.Services
             movie.MovieCategories = updatedMovie.CategoryIds
                 .Select(cid => new MovieCategory { CategoryId = cid, MovieId = movie.MovieId })
                 .ToList();
+            
+            _context.MovieActors.RemoveRange(movie.MovieActors);
+            movie.MovieActors = updatedMovie.ActorIds
+                .Select(aid => new MovieActor { ActorId = aid, MovieId = movie.MovieId })
+                .ToList();
 
             await _context.SaveChangesAsync();
             return true;
@@ -162,12 +168,16 @@ namespace MovieAPI.Services
             var movie = await _context.Movies
                 .Include(m => m.MovieGenres)  
                 .Include(m => m.MovieCategories)  
+                .Include(m => m.MovieActors)
                 .FirstOrDefaultAsync(m => m.MovieId == movieId);
 
            
             if (movie == null) return false;
 
             
+            _context.MovieGenres.RemoveRange(movie.MovieGenres);
+            _context.MovieCategories.RemoveRange(movie.MovieCategories);
+            _context.MovieActors.RemoveRange(movie.MovieActors);
             _context.Movies.Remove(movie);
 
           
@@ -294,6 +304,7 @@ namespace MovieAPI.Services
             Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
             Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
             Qualities = movie.MovieQualities?.Select(mq => mq.Quality?.QualityName).ToList() ?? new List<string>(),
+            Actors = movie.MovieActors?.Select(ma => ma.Actor?.ActorName).ToList() ?? new List<string>(), 
             AddedAt = movie.AddedAt,
             ImagePath = movie.ImagePath,
         };
