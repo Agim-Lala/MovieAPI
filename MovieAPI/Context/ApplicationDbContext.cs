@@ -10,6 +10,7 @@ using System.Reflection.Emit;
 using System.Xml.Linq;
 using MovieAPI.Domain.Actors;
 using MovieAPI.Domain.Qualities;
+using MovieAPI.Domain.Users;
 
 namespace MovieAPI.Context
 {
@@ -21,14 +22,17 @@ namespace MovieAPI.Context
         public DbSet<Director> Directors { get; set; }
         public DbSet<Genre> Genres { get; set; }
         public DbSet<MovieGenre> MovieGenres { get; set; }
-        public DbSet<Category> Categories { get; set; }
+        public DbSet<Category> Categories { get; set; } 
         public DbSet<MovieCategory> MovieCategories { get; set; }
         public DbSet<Quality> Qualities { get; set; } 
+        
         public DbSet<MovieQuality> MovieQualities { get; set; }
         
         public DbSet<Actor> Actors { get; set; } 
         
         public DbSet<MovieActor> MovieActors { get; set; }
+
+        public DbSet<User> Users { get; set; }
 
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
