@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Reflection.Emit;
 using System.Xml.Linq;
 using MovieAPI.Domain.Actors;
+using MovieAPI.Domain.Comments;
 using MovieAPI.Domain.Qualities;
 using MovieAPI.Domain.Users;
 
@@ -33,6 +34,10 @@ namespace MovieAPI.Context
         public DbSet<MovieActor> MovieActors { get; set; }
 
         public DbSet<User> Users { get; set; }
+        
+        public DbSet<Comment> Comments { get; set; }
+        
+        public DbSet<CommentReaction> CommentReactions { get; set; }
 
         
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -50,8 +55,74 @@ namespace MovieAPI.Context
                 .WithMany(d => d.Movies)
                 .HasForeignKey(m => m.DirectorId)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.User)
+                .WithMany(u => u.Comments)
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.Movie)
+                .WithMany(m => m.Comments)
+                .HasForeignKey(c => c.MovieId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.ParentComment)
+                .WithMany(c => c.Replies)
+                .HasForeignKey(c => c.ParentCommentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.QuotedComment)
+                .WithMany()
+                .HasForeignKey(c => c.QuotedCommentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CommentReaction>()
+                .HasKey(cr => cr.CommentReactionId);
+
+            modelBuilder.Entity<CommentReaction>()
+                .HasOne(cr => cr.User)
+                .WithMany(u => u.CommentReactions)
+                .HasForeignKey(cr => cr.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CommentReaction>()
+                .HasOne(cr => cr.Comment)
+                .WithMany(c => c.Reactions)
+                .HasForeignKey(cr => cr.CommentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            modelBuilder.Entity<Comment>()
+                .HasMany(c => c.LikedByUsers)
+                .WithMany(u => u.LikedComments) // assuming you have this on User
+                .UsingEntity(j => j.ToTable("CommentLikes"));
+
+            modelBuilder.Entity<Comment>()
+                .HasMany(c => c.DislikedByUsers)
+                .WithMany(u => u.DislikedComments) // assuming you have this on User
+                .UsingEntity(j => j.ToTable("CommentDislikes"));
+            
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.LikedComments)
+                .WithMany(c => c.LikedByUsers)
+                .UsingEntity(j => j.ToTable("CommentLikes"));
+
+            modelBuilder.Entity<User>()
+                .HasMany(u => u.DislikedComments)
+                .WithMany(c => c.DislikedByUsers)
+                .UsingEntity(j => j.ToTable("CommentDislikes"));
         }
 
+      
+        
+        
+        
+        
+        
+        
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             base.OnConfiguring(optionsBuilder);

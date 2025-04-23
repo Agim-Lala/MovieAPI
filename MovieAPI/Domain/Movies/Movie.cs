@@ -2,6 +2,7 @@
 using System.IO;
 using MovieAPI.Domain.Actors;
 using MovieAPI.Domain.Categories;
+using MovieAPI.Domain.Comments;
 using MovieAPI.Domain.Directors;
 using MovieAPI.Domain.Genres;
 using MovieAPI.Domain.Qualities;
@@ -35,6 +36,9 @@ namespace MovieAPI.Domain.Movies
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
         
         public string ImagePath { get; set; }
+        
+        public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+
 
 
     }

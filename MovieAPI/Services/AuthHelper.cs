@@ -45,7 +45,7 @@ public class AuthHelper
             issuer: _config["Jwt:Issuer"], // Replace with your actual issuer
             audience: _config["Jwt:Audience"], // Replace with your actual audience
             claims: claims,
-            expires: DateTime.Now.AddMinutes(60),
+            expires: DateTime.Now.AddHours(5),
             signingCredentials: creds
         );
 

@@ -19,8 +19,7 @@ builder.Services.AddControllers();
 builder.Services.AddScoped<AuthHelper>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
-
-
+builder.Services.AddScoped<ICommentService, CommentService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
