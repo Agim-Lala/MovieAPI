@@ -20,6 +20,7 @@ builder.Services.AddScoped<AuthHelper>();
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {

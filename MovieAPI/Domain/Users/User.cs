@@ -1,4 +1,5 @@
 ﻿using MovieAPI.Domain.Comments;
+using MovieAPI.Domain.Reviews;
 
 namespace MovieAPI.Domain.Users;
 
@@ -19,6 +20,9 @@ public class User
     public List<Comment> LikedComments { get; set; } = new();
     
     public List<Comment> DislikedComments { get; set; } = new();
+    
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
+
 
     
 }

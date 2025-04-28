@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using MovieAPI.Domain.Actors;
 using MovieAPI.Domain.Comments;
 using MovieAPI.Domain.Qualities;
+using MovieAPI.Domain.Reviews;
 using MovieAPI.Domain.Users;
 
 namespace MovieAPI.Context
@@ -39,23 +40,25 @@ namespace MovieAPI.Context
         
         public DbSet<CommentReaction> CommentReactions { get; set; }
 
-        
+        public DbSet<Review> Reviews { get; set; }
+
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<MovieGenre>().HasKey(mg => new { mg.MovieId, mg.GenreId });
 
             modelBuilder.Entity<MovieCategory>().HasKey(mc => new { mc.MovieId, mc.CategoryId });
-            
-            modelBuilder.Entity<MovieQuality>().HasKey(mq => new { mq.MovieId, mq.QualityId }); 
-            
-            modelBuilder.Entity<MovieActor>().HasKey(ma => new { ma.MovieId, ma.ActorId }); 
+
+            modelBuilder.Entity<MovieQuality>().HasKey(mq => new { mq.MovieId, mq.QualityId });
+
+            modelBuilder.Entity<MovieActor>().HasKey(ma => new { ma.MovieId, ma.ActorId });
 
             modelBuilder.Entity<Movie>()
                 .HasOne(m => m.Director)
                 .WithMany(d => d.Movies)
                 .HasForeignKey(m => m.DirectorId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             modelBuilder.Entity<Comment>()
                 .HasOne(c => c.User)
                 .WithMany(u => u.Comments)
@@ -94,7 +97,7 @@ namespace MovieAPI.Context
                 .WithMany(c => c.Reactions)
                 .HasForeignKey(cr => cr.CommentId)
                 .OnDelete(DeleteBehavior.Cascade);
-            
+
             modelBuilder.Entity<Comment>()
                 .HasMany(c => c.LikedByUsers)
                 .WithMany(u => u.LikedComments) // assuming you have this on User
@@ -104,7 +107,7 @@ namespace MovieAPI.Context
                 .HasMany(c => c.DislikedByUsers)
                 .WithMany(u => u.DislikedComments) // assuming you have this on User
                 .UsingEntity(j => j.ToTable("CommentDislikes"));
-            
+
             modelBuilder.Entity<User>()
                 .HasMany(u => u.LikedComments)
                 .WithMany(c => c.LikedByUsers)
@@ -114,15 +117,18 @@ namespace MovieAPI.Context
                 .HasMany(u => u.DislikedComments)
                 .WithMany(c => c.DislikedByUsers)
                 .UsingEntity(j => j.ToTable("CommentDislikes"));
-        }
 
-      
-        
-        
-        
-        
-        
-        
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.User)
+                .WithMany(u => u.Reviews)
+                .HasForeignKey(r => r.UserId);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Movie)
+                .WithMany(m => m.Reviews)
+                .HasForeignKey(r => r.MovieId);
+
+        }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             base.OnConfiguring(optionsBuilder);

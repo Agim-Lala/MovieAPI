@@ -16,6 +16,8 @@
         public DateTime AddedAt { get; set; }
         
         public string ImagePath { get; set; }
+        
+        
 
     }
 }

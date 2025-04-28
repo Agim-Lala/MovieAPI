@@ -6,6 +6,7 @@ using MovieAPI.Domain.Comments;
 using MovieAPI.Domain.Directors;
 using MovieAPI.Domain.Genres;
 using MovieAPI.Domain.Qualities;
+using MovieAPI.Domain.Reviews;
 
 namespace MovieAPI.Domain.Movies
 {
@@ -38,6 +39,10 @@ namespace MovieAPI.Domain.Movies
         public string ImagePath { get; set; }
         
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
+        
+        public ICollection<Review> Reviews { get; set; } = new List<Review>();
+
+        public double AverageRating { get; set; } 
 
 
 
