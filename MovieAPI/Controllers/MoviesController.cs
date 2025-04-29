@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using MovieAPI.Domain.Movies;
 using MovieAPI.Services;
 
@@ -7,13 +8,22 @@ namespace MovieAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class MoviesController : Controller
+    public class MoviesController : ControllerBase
     {
         private readonly MovieService _movieService;
 
         public MoviesController(MovieService movieService)
         {
             _movieService = movieService;
+        }
+        
+        [HttpGet("new")]
+        public async Task<ActionResult<List<MovieDTO>>> GetNewMovies([FromQuery] int page = 1, [FromQuery] int pageSize = 5)
+        {
+            if (page < 1 || pageSize < 1) return BadRequest("Page and pageSize must be greater than 0.");
+
+            var movies = await _movieService.GetNewMoviesAsync(page, pageSize);
+            return Ok(movies);
         }
 
         [HttpGet]
@@ -34,6 +44,8 @@ namespace MovieAPI.Controllers
             return Ok(movie);
         }
         
+        
+        [Authorize(Policy = "AdminOnly")]
         [HttpPost]
         public async Task<IActionResult> CreateMovie(CreateMovieDTO movieDTO)
         {
@@ -50,6 +62,7 @@ namespace MovieAPI.Controllers
             }
         }
         
+        [Authorize(Policy = "AdminOnly")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateMovie(int id, [FromBody] CreateMovieDTO updatedMovie)
         {
@@ -61,6 +74,7 @@ namespace MovieAPI.Controllers
             return NoContent();
         }
 
+        [Authorize(Policy = "AdminOnly")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMovie(int id)
         {
@@ -95,6 +109,17 @@ namespace MovieAPI.Controllers
         public async Task<ActionResult<List<MovieDTO>>> GetMoviesByReleaseYear([FromQuery] int startYear, [FromQuery] int endYear)
         {
             var movies = await _movieService.GetMoviesByReleaseYearAsync(startYear, endYear);
+            return Ok(movies);
+        }
+        
+        [HttpGet("filter")]
+        public async Task<ActionResult<List<MovieDTO>>> GetFilteredMovies(
+            [FromQuery] int? genreId,
+            [FromQuery] int? startYear,
+            [FromQuery] int? endYear,
+            [FromQuery] int? qualityId) 
+        {
+            var movies = await _movieService.GetFilteredMoviesAsync(genreId, startYear, endYear, qualityId); // Pass qualityId
             return Ok(movies);
         }
     }

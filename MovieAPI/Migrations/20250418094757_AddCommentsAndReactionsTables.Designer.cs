@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MovieAPI.Context;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MovieAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250418094757_AddCommentsAndReactionsTables")]
+    partial class AddCommentsAndReactionsTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -178,9 +181,6 @@ namespace MovieAPI.Migrations
                     b.Property<int>("CommentId")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("IsDislike")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("IsLike")
                         .HasColumnType("boolean");
 
@@ -258,9 +258,6 @@ namespace MovieAPI.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<double>("AverageRating")
-                        .HasColumnType("double precision");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(1000)
@@ -319,42 +316,6 @@ namespace MovieAPI.Migrations
                     b.HasKey("QualityId");
 
                     b.ToTable("Qualities");
-                });
-
-            modelBuilder.Entity("MovieAPI.Domain.Reviews.Review", b =>
-                {
-                    b.Property<int>("ReviewId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ReviewId"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("MovieId")
-                        .HasColumnType("integer");
-
-                    b.Property<double>("Rating")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ReviewId");
-
-                    b.HasIndex("MovieId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("MovieAPI.Domain.Users.User", b =>
@@ -562,25 +523,6 @@ namespace MovieAPI.Migrations
                     b.Navigation("Quality");
                 });
 
-            modelBuilder.Entity("MovieAPI.Domain.Reviews.Review", b =>
-                {
-                    b.HasOne("MovieAPI.Domain.Movies.Movie", "Movie")
-                        .WithMany("Reviews")
-                        .HasForeignKey("MovieId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MovieAPI.Domain.Users.User", "User")
-                        .WithMany("Reviews")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Movie");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("MovieAPI.Domain.Actors.Actor", b =>
                 {
                     b.Navigation("MovieActors");
@@ -619,8 +561,6 @@ namespace MovieAPI.Migrations
                     b.Navigation("MovieGenres");
 
                     b.Navigation("MovieQualities");
-
-                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("MovieAPI.Domain.Qualities.Quality", b =>
@@ -633,8 +573,6 @@ namespace MovieAPI.Migrations
                     b.Navigation("CommentReactions");
 
                     b.Navigation("Comments");
-
-                    b.Navigation("Reviews");
                 });
 #pragma warning restore 612, 618
         }
