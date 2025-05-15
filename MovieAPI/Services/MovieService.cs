@@ -5,6 +5,8 @@ using MovieAPI.Domain.Categories;
 using MovieAPI.Domain.Genres;
 using MovieAPI.Domain.Movies;
 using MovieAPI.Domain.Qualities;
+using MovieAPI.Domain.Users;
+using MovieAPI.Enums;
 
 namespace MovieAPI.Services
 {
@@ -15,6 +17,48 @@ namespace MovieAPI.Services
         public MovieService(ApplicationDbContext context)
         {
             _context = context;
+        }
+        
+        
+        public async Task<(List<MovieDTO> Movies, int TotalCount)> GetSortedMoviesAsync(MovieSortOption sortBy, bool ascending = true, int page =1, int pageSize=10)
+        {
+            var query = _context.Movies
+                .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .Include(m => m.Director)
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
+                .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+                .AsQueryable();
+
+            // Apply sorting
+            query = (sortBy, ascending) switch
+            {
+                (MovieSortOption.Id, true) => query.OrderBy(m => m.MovieId),
+                (MovieSortOption.Id, false) => query.OrderByDescending(m => m.MovieId),
+                (MovieSortOption.Title, true) => query.OrderBy(m => m.Title),
+                (MovieSortOption.Title, false) => query.OrderByDescending(m => m.Title),
+                (MovieSortOption.Rating, true) => query.OrderBy(m => m.AverageRating),
+                (MovieSortOption.Rating, false) => query.OrderByDescending(m => m.AverageRating),
+                (MovieSortOption.Views, true) => query.OrderBy(m => m.Views),
+                (MovieSortOption.Views, false) => query.OrderByDescending(m => m.Views),
+                (MovieSortOption.CreatedAt, true) => query.OrderBy(m => m.AddedAt),
+                (MovieSortOption.CreatedAt, false) => query.OrderByDescending(m => m.AddedAt),
+                (MovieSortOption.Status, true) => query.OrderBy(m => m.IsVisible),
+                (MovieSortOption.Status, false) => query.OrderByDescending(m => m.IsVisible),
+                (MovieSortOption.Category, true) => query.OrderBy(m => m.MovieCategories.FirstOrDefault().Category.Name),
+                (MovieSortOption.Category, false) => query.OrderByDescending(m => m.MovieCategories.FirstOrDefault().Category.Name),
+                _ => query.OrderByDescending(m => m.MovieId)
+            };
+
+            int totalCount = await query.CountAsync();
+            
+            var movies= await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)     
+                .ToListAsync();
+
+            return (movies.Select(MapToDTO).ToList(), totalCount);
+
         }
         
         
@@ -30,6 +74,7 @@ namespace MovieAPI.Services
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
+            
         }
         public async Task<List<MovieDTO>> GetAllMoviesAsync()
         {
@@ -275,6 +320,47 @@ namespace MovieAPI.Services
             return movies.Select(MapToDTO).ToList();
         }
         
+        //VIEWS 
+
+        public async Task RecordMovieViewAsync(int movieId, int userId)
+        {
+            var movie = await _context.Movies.FindAsync(movieId);
+            if (movie == null) throw new Exception("Movie not found");
+
+            var watch = new UserMovieWatch
+            {
+                MovieId = movieId,
+                UserId = userId,
+                WatchedAt = DateTime.UtcNow,
+            };
+            await _context.UserMovieWatches.AddAsync(watch);
+
+            movie.Views += 1;
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<int> GetTotalViewsAsync(int movieId)
+        {
+            var movie = await _context.Movies.FindAsync(movieId);
+            return movie?.Views ??0;
+        }
+        
+        public async Task<int> GetAllMoviesMonthlyUniqueViewsAsync()
+        {
+            var now = DateTime.UtcNow;
+            var startOfMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var startOfNextMonth = startOfMonth.AddMonths(1);
+
+            var uniqueViews = await _context.UserMovieWatches
+                .Where(umw => umw.WatchedAt >= startOfMonth && umw.WatchedAt < startOfNextMonth)
+                .GroupBy(umw => umw.MovieId)
+                .Select(g => g.Select(x => x.UserId).Distinct().Count())
+                .SumAsync();
+
+            return uniqueViews;
+        }
+
         public async Task<string> UploadImageAsync(IFormFile file)
         {
             if (file == null || file.Length == 0)
@@ -307,6 +393,9 @@ namespace MovieAPI.Services
             Actors = movie.MovieActors?.Select(ma => ma.Actor?.ActorName).ToList() ?? new List<string>(), 
             AddedAt = movie.AddedAt,
             ImagePath = movie.ImagePath,
+            AverageRating = movie.AverageRating,
+            IsVisible = movie.IsVisible,
+            Views = movie.Views
         };
         
 

@@ -43,6 +43,10 @@ namespace MovieAPI.Domain.Movies
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
 
         public double AverageRating { get; set; } 
+        
+        public bool IsVisible { get; set; } = true;  
+        
+        public int Views { get; set; } = 0;
 
 
 

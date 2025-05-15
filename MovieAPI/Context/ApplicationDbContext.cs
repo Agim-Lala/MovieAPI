@@ -41,7 +41,8 @@ namespace MovieAPI.Context
         public DbSet<CommentReaction> CommentReactions { get; set; }
 
         public DbSet<Review> Reviews { get; set; }
-
+        
+        public DbSet<UserMovieWatch> UserMovieWatches { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -100,12 +101,12 @@ namespace MovieAPI.Context
 
             modelBuilder.Entity<Comment>()
                 .HasMany(c => c.LikedByUsers)
-                .WithMany(u => u.LikedComments) // assuming you have this on User
+                .WithMany(u => u.LikedComments) 
                 .UsingEntity(j => j.ToTable("CommentLikes"));
 
             modelBuilder.Entity<Comment>()
                 .HasMany(c => c.DislikedByUsers)
-                .WithMany(u => u.DislikedComments) // assuming you have this on User
+                .WithMany(u => u.DislikedComments) 
                 .UsingEntity(j => j.ToTable("CommentDislikes"));
 
             modelBuilder.Entity<User>()
@@ -127,6 +128,9 @@ namespace MovieAPI.Context
                 .HasOne(r => r.Movie)
                 .WithMany(m => m.Reviews)
                 .HasForeignKey(r => r.MovieId);
+            
+            modelBuilder.Entity<UserMovieWatch>()
+                .HasIndex(w => new { w.UserId, w.MovieId, w.WatchedAt });
 
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
