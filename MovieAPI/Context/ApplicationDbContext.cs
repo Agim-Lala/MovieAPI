@@ -43,6 +43,9 @@ namespace MovieAPI.Context
         public DbSet<Review> Reviews { get; set; }
         
         public DbSet<UserMovieWatch> UserMovieWatches { get; set; }
+        
+        public DbSet<ReviewReaction> ReviewReactions { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -101,12 +104,12 @@ namespace MovieAPI.Context
 
             modelBuilder.Entity<Comment>()
                 .HasMany(c => c.LikedByUsers)
-                .WithMany(u => u.LikedComments) 
+                .WithMany(u => u.LikedComments) // assuming you have this on User
                 .UsingEntity(j => j.ToTable("CommentLikes"));
 
             modelBuilder.Entity<Comment>()
                 .HasMany(c => c.DislikedByUsers)
-                .WithMany(u => u.DislikedComments) 
+                .WithMany(u => u.DislikedComments) // assuming you have this on User
                 .UsingEntity(j => j.ToTable("CommentDislikes"));
 
             modelBuilder.Entity<User>()
@@ -131,6 +134,24 @@ namespace MovieAPI.Context
             
             modelBuilder.Entity<UserMovieWatch>()
                 .HasIndex(w => new { w.UserId, w.MovieId, w.WatchedAt });
+
+            modelBuilder.Entity<ReviewReaction>()
+                .HasOne(rr => rr.User)
+                .WithMany(u => u.Reactions)
+                .HasForeignKey(rr => rr.UserId)
+                .OnDelete(DeleteBehavior.Cascade); 
+
+            modelBuilder.Entity<ReviewReaction>()
+                .HasOne(rr => rr.Review)
+                .WithMany(r => r.Reactions)
+                .HasForeignKey(rr => rr.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            
+            modelBuilder.Entity<ReviewReaction>()
+                .HasIndex(rr => new { rr.UserId, rr.ReviewId })
+                .IsUnique();
+
 
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
