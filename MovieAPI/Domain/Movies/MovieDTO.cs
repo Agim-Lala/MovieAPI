@@ -17,7 +17,10 @@
         
         public string ImagePath { get; set; }
         
+        public double AverageRating { get; set; } 
         
-
+        public bool IsVisible { get; set; }    
+        
+        public int Views { get; set; } 
     }
 }
