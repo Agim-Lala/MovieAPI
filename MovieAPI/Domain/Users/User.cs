@@ -22,6 +22,8 @@ public class User
     public List<Comment> DislikedComments { get; set; } = new();
     
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
+    
+    public ICollection<ReviewReaction> Reactions { get; set; } = new List<ReviewReaction>();  
 
 
     
