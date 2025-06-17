@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace MovieAPI.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250520104647_AddReviewReactionTable")]
-    partial class AddReviewReactionTable
+    [Migration("20250612093844_AddSubscriptionPlan")]
+    partial class AddSubscriptionPlan
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -276,6 +276,9 @@ namespace MovieAPI.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("ReleaseYear")
                         .HasColumnType("integer");
 
@@ -283,6 +286,9 @@ namespace MovieAPI.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("integer");
 
                     b.HasKey("MovieId");
 
@@ -390,6 +396,45 @@ namespace MovieAPI.Migrations
                     b.ToTable("ReviewReactions");
                 });
 
+            modelBuilder.Entity("MovieAPI.Domain.Users.SubscriptionPlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DeviceAccess")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Duration")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("LifetimeAvailability")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Resolution")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupportLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SubscriptionPlans");
+                });
+
             modelBuilder.Entity("MovieAPI.Domain.Users.User", b =>
                 {
                     b.Property<int>("Id")
@@ -397,6 +442,9 @@ namespace MovieAPI.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -417,13 +465,53 @@ namespace MovieAPI.Migrations
                     b.Property<int>("Role")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SubscriptionEndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SubscriptionPlanId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SubscriptionStartDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SubscriptionPlanId");
+
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("MovieAPI.Domain.Users.UserMovieWatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("WatchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MovieId");
+
+                    b.HasIndex("UserId", "MovieId", "WatchedAt");
+
+                    b.ToTable("UserMovieWatches");
                 });
 
             modelBuilder.Entity("CommentUser", b =>
@@ -633,6 +721,36 @@ namespace MovieAPI.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MovieAPI.Domain.Users.User", b =>
+                {
+                    b.HasOne("MovieAPI.Domain.Users.SubscriptionPlan", "SubscriptionPlan")
+                        .WithMany("Users")
+                        .HasForeignKey("SubscriptionPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SubscriptionPlan");
+                });
+
+            modelBuilder.Entity("MovieAPI.Domain.Users.UserMovieWatch", b =>
+                {
+                    b.HasOne("MovieAPI.Domain.Movies.Movie", "Movie")
+                        .WithMany()
+                        .HasForeignKey("MovieId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MovieAPI.Domain.Users.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Movie");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MovieAPI.Domain.Actors.Actor", b =>
                 {
                     b.Navigation("MovieActors");
@@ -683,6 +801,11 @@ namespace MovieAPI.Migrations
             modelBuilder.Entity("MovieAPI.Domain.Reviews.Review", b =>
                 {
                     b.Navigation("Reactions");
+                });
+
+            modelBuilder.Entity("MovieAPI.Domain.Users.SubscriptionPlan", b =>
+                {
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("MovieAPI.Domain.Users.User", b =>

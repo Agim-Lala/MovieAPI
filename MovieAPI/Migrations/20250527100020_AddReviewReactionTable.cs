@@ -12,6 +12,7 @@ namespace MovieAPI.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+
             migrationBuilder.CreateTable(
                 name: "ReviewReactions",
                 columns: table => new
@@ -57,6 +58,9 @@ namespace MovieAPI.Migrations
         {
             migrationBuilder.DropTable(
                 name: "ReviewReactions");
+            
+
+           
         }
     }
 }

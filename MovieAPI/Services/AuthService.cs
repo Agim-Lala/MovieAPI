@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using MovieAPI.Context;
 using MovieAPI.Domain.Users;
+using MovieAPI.Enums;
 
 namespace MovieAPI.Services;
 
@@ -16,6 +17,44 @@ public class AuthService : IAuthService
         _authHelper = authHelper;
     }
 
+    public async Task<(List<UserDto> Users, int TotalCount)> GetSortedUsersAsync(UserSortOption sortBy,
+        bool ascending = true, int page = 1, int pageSize = 10)
+    {
+        var query = _context.Users.AsQueryable();
+
+        query = (sortBy, ascending) switch
+        {
+            (UserSortOption.Id, true) => query.OrderBy(u => u.Id),
+            (UserSortOption.Id, false) => query.OrderByDescending(u => u.Id),
+            (UserSortOption.FirstName, true) => query.OrderBy(u => u.FirstName),
+            (UserSortOption.FirstName, false) => query.OrderByDescending(u => u.FirstName),
+            (UserSortOption.LastName, true) => query.OrderBy(u => u.LastName),
+            (UserSortOption.LastName, false) => query.OrderByDescending(u => u.LastName),
+            (UserSortOption.Email, true) => query.OrderBy(u => u.Email),
+            (UserSortOption.Email, false) => query.OrderByDescending(u => u.Email),
+            (UserSortOption.Username, true) => query.OrderBy(u => u.Username),
+            (UserSortOption.Username, false) => query.OrderByDescending(u => u.Username),
+            (UserSortOption.CreatedAt, true) => query.OrderBy(u => u.CreatedAt),
+            (UserSortOption.CreatedAt, false) => query.OrderByDescending(u => u.CreatedAt),
+            (UserSortOption.CommentCount, true) => query.OrderBy(u => _context.Comments.Count(c => c.UserId == u.Id)),
+            (UserSortOption.CommentCount, false) => query.OrderByDescending(u => _context.Comments.Count(c => c.UserId == u.Id)),
+            (UserSortOption.ReviewCount, true) => query.OrderBy(u => _context.Reviews.Count(r => r.UserId == u.Id)),
+            (UserSortOption.ReviewCount, false) => query.OrderByDescending(u => _context.Reviews.Count(r => r.UserId == u.Id)),
+
+            _ => query.OrderBy(u => u.Id)
+        };
+
+        int totalCount = await query.CountAsync();
+        
+        var users = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return (users.Select(MapToDTO).ToList(), totalCount);
+    }
+
+    
     public async Task<string> RegisterAsync(RegisterDto dto)
     {
         try
@@ -33,7 +72,11 @@ public class AuthService : IAuthService
                 Email = dto.Email,
                 Username = dto.Username,
                 PasswordHash = _authHelper.HashPassword(dto.Password),
-                Role = UserRole.Customer
+                Role = UserRole.Customer,
+                SubscriptionPlanId = 1, 
+                SubscriptionStartDate = DateTime.UtcNow,
+                SubscriptionEndDate = null
+                
             };
 
             _context.Users.Add(user);
@@ -64,16 +107,17 @@ public class AuthService : IAuthService
      
              if (user == null) throw new Exception("User not found");
      
-             return new UserDto
-             {
-                 FirstName = user.FirstName,
-                 LastName = user.LastName,
-                 Username = user.Username,
-                 Email = user.Email,
-                 Role = user.Role.ToString() 
+             return MapToDTO(user);
 
-             };
          }
+
+    public async Task<UserDto> GetUserByIdAsync(int id)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) throw new Exception("User not found");
+        
+        return MapToDTO(user);
+    }
     
     public async Task<UserDto> UpdateMeAsync(ClaimsPrincipal userClaims, UpdateUserDto dto)
     {
@@ -109,12 +153,113 @@ public class AuthService : IAuthService
 
         await _context.SaveChangesAsync();
 
+        return MapToDTO(user);
+    }
+    public async Task<UserDto> UpdateUserAsync(int id, UpdateUserProfileDto updatedDto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null)
+            throw new Exception("User not found");
+
+        if (!string.IsNullOrWhiteSpace(updatedDto.Username) &&
+            updatedDto.Username != user.Username &&
+            await _context.Users.AnyAsync(u => u.Username == updatedDto.Username && u.Id != id))
+        {
+            throw new Exception("Username is already taken by another user.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(updatedDto.Email) &&
+            updatedDto.Email != user.Email &&
+            await _context.Users.AnyAsync(u => u.Email == updatedDto.Email && u.Id != id))
+        {
+            throw new Exception("Email is already in use by another user.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(updatedDto.FirstName))
+            user.FirstName = updatedDto.FirstName;
+
+        if (!string.IsNullOrWhiteSpace(updatedDto.LastName))
+            user.LastName = updatedDto.LastName;
+
+        if (!string.IsNullOrWhiteSpace(updatedDto.Username))
+            user.Username = updatedDto.Username;
+
+        if (!string.IsNullOrWhiteSpace(updatedDto.Email))
+            user.Email = updatedDto.Email;
+       
+        if (updatedDto.SubscriptionPlanId.HasValue)
+        {
+            var planExists = await _context.SubscriptionPlans
+                .AnyAsync(sp => sp.Id == updatedDto.SubscriptionPlanId.Value);
+
+            if (!planExists)
+                throw new Exception("Subscription plan not found.");
+
+            user.SubscriptionPlanId = updatedDto.SubscriptionPlanId.Value;
+            user.SubscriptionStartDate = DateTime.UtcNow;
+            user.SubscriptionEndDate = null; 
+        }
+        await _context.SaveChangesAsync();
+
+        return MapToDTO(user);
+    }
+    public async Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            throw new Exception("User not found.");
+
+        if (!_authHelper.VerifyPassword(user.PasswordHash, dto.OldPassword))
+            throw new Exception("Old password is incorrect.");
+
+        if (dto.NewPassword != dto.ConfirmNewPassword)
+            throw new Exception("New password and confirmation do not match.");
+
+        user.PasswordHash = _authHelper.HashPassword(dto.NewPassword);
+
+        await _context.SaveChangesAsync();
+        return true;
+    }
+    
+    public async Task AssignSubscriptionToUserAsync(int userId, int planId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        var plan = await _context.SubscriptionPlans.FindAsync(planId);
+        if (user == null || plan == null)
+            throw new Exception("User or plan not found");
+
+        user.SubscriptionPlanId = planId;
+        user.SubscriptionStartDate = DateTime.UtcNow;
+        user.SubscriptionEndDate = plan.LifetimeAvailability
+            ? null
+            : DateTime.UtcNow.AddDays(ParseDurationInDays(plan.Duration));
+
+        await _context.SaveChangesAsync();
+    }
+
+    private UserDto MapToDTO(User user)
+    {
         return new UserDto
         {
+            Id = user.Id,
             FirstName = user.FirstName,
             LastName = user.LastName,
+            FullName = $"{user.FirstName} {user.LastName}",
+            Email = user.Email,
             Username = user.Username,
-            Email = user.Email
+            CommentCount = _context.Comments.Count(c => c.UserId == user.Id),
+            ReviewCount = _context.Reviews.Count(r => r.UserId == user.Id),
+            Status = user.Status.ToString(),
+            CreatedAt = user.CreatedAt,
+            Role = user.Role.ToString(),
+            SubscriptionPlanId = user.SubscriptionPlanId
         };
     }
+    
+    private int ParseDurationInDays(string duration) {
+        if (duration.Contains("day")) return int.Parse(duration.Split(' ')[0]);
+        if (duration.Contains("month")) return int.Parse(duration.Split(' ')[0]) * 30;
+        throw new Exception("Invalid duration format");
+    }
+    
 }
