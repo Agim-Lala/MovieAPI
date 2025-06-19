@@ -45,6 +45,9 @@ namespace MovieAPI.Context
         public DbSet<UserMovieWatch> UserMovieWatches { get; set; }
         
         public DbSet<ReviewReaction> ReviewReactions { get; set; }
+        
+        public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -152,6 +155,11 @@ namespace MovieAPI.Context
                 .HasIndex(rr => new { rr.UserId, rr.ReviewId })
                 .IsUnique();
 
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.SubscriptionPlan)
+                .WithMany(p => p.Users)
+                .HasForeignKey(u => u.SubscriptionPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
