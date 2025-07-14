@@ -105,26 +105,6 @@ namespace MovieAPI.Context
                 .HasForeignKey(cr => cr.CommentId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Comment>()
-                .HasMany(c => c.LikedByUsers)
-                .WithMany(u => u.LikedComments) // assuming you have this on User
-                .UsingEntity(j => j.ToTable("CommentLikes"));
-
-            modelBuilder.Entity<Comment>()
-                .HasMany(c => c.DislikedByUsers)
-                .WithMany(u => u.DislikedComments) // assuming you have this on User
-                .UsingEntity(j => j.ToTable("CommentDislikes"));
-
-            modelBuilder.Entity<User>()
-                .HasMany(u => u.LikedComments)
-                .WithMany(c => c.LikedByUsers)
-                .UsingEntity(j => j.ToTable("CommentLikes"));
-
-            modelBuilder.Entity<User>()
-                .HasMany(u => u.DislikedComments)
-                .WithMany(c => c.DislikedByUsers)
-                .UsingEntity(j => j.ToTable("CommentDislikes"));
-
             modelBuilder.Entity<Review>()
                 .HasOne(r => r.User)
                 .WithMany(u => u.Reviews)

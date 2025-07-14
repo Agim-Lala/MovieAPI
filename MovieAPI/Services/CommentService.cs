@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MovieAPI.Context;
 using MovieAPI.Domain.Comments;
+using MovieAPI.Enums;
 
 namespace MovieAPI.Services;
 
@@ -12,12 +13,60 @@ public class CommentService : ICommentService
     {
         _context = context;
     }
+    
+    public async Task<(List<CommentDTO> Comments, int TotalCount)> GetSortedCommentsAsync(
+        CommentSortOption sortBy,
+        bool ascending = true,
+        int page = 1,
+        int pageSize = 10)
+    {
+        var query = _context.Comments
+            .Include(c => c.User)
+            .Include(c => c.Movie)
+            .AsQueryable();
+        
+
+        query = (sortBy, ascending) switch
+        {
+            (CommentSortOption.Id, true) => query.OrderBy(c => c.CommentId),
+            (CommentSortOption.Id, false) => query.OrderByDescending(c => c.CommentId),
+
+            (CommentSortOption.CreatedAt, true) => query.OrderBy(c => c.CreatedAt),
+            (CommentSortOption.CreatedAt, false) => query.OrderByDescending(c => c.CreatedAt),
+            
+            (CommentSortOption.Username, true) => query.OrderBy(c => c.User.Username),
+            (CommentSortOption.Username, false) => query.OrderByDescending(c => c.User.Username),
+
+            (CommentSortOption.MovieTitle, true) => query.OrderBy(c => c.Movie.Title),
+            (CommentSortOption.MovieTitle, false) => query.OrderByDescending(c => c.Movie.Title),
+
+            _ => query.OrderByDescending(c => c.CreatedAt)
+        };
+
+        int totalCount = await query.CountAsync();
+
+        var comments = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var commentDtos = new List<CommentDTO>();
+        foreach (var comment in comments)
+        {
+            var dto = await BuildCommentDTOAsync(comment);
+            commentDtos.Add(dto);
+        }
+
+        return (commentDtos, totalCount);
+    }
 
     public async Task<CommentDTO> AddCommentAsync(CreateCommentDTO dto, int userId)
     {
+        // Optional: Validate movie exists
+
         var comment = new Comment
         {
-            Text = dto.Text, 
+            Text = dto.Text,
             MovieId = dto.MovieId,
             UserId = userId,
             ParentCommentId = dto.ParentCommentId,
@@ -27,8 +76,18 @@ public class CommentService : ICommentService
 
         _context.Comments.Add(comment);
         await _context.SaveChangesAsync();
+        
+        var savedComment = await _context.Comments
+            .Include(c => c.User)
+            .Include(c => c.Movie)
+            .FirstOrDefaultAsync(c => c.CommentId == comment.CommentId);
 
-        return await BuildCommentDTOAsync(comment);
+        if (savedComment is null)
+        {
+            throw new Exception("Could not reload saved comment");
+        }
+
+        return await BuildCommentDTOAsync(savedComment);
     }
 
     public async Task<bool> DeleteCommentAsync(int commentId, int userId)
@@ -45,91 +104,77 @@ public class CommentService : ICommentService
     {
         var comments = await _context.Comments
             .Where(c => c.UserId == userId && c.ParentCommentId == null)
+            .Include(c => c.User)
+            .Include(c =>c.Movie)
             .Include(c => c.Replies)
+                .ThenInclude(r => r.User)
             .ToListAsync();
 
-        return (await Task.WhenAll(comments.Select(BuildCommentDTOAsync))).ToList();
+       var commentDtos = new List<CommentDTO>();
+       
+       foreach (var comment in comments)
+       {
+           var dto = await BuildCommentDTOAsync(comment);
+           commentDtos.Add(dto);
+       }
+       return commentDtos;
     }
 
     public async Task<List<CommentDTO>> GetCommentsByMovieAsync(int movieId)
     {
         var comments = await _context.Comments
             .Where(c => c.MovieId == movieId && c.ParentCommentId == null)
-            .Include(c => c.User) // Include the User for direct access to Username
+            .Include(c => c.User)
+            .Include(c =>c.Movie)
             .Include(c => c.Replies)
-            .ThenInclude(r => r.User).Include(comment => comment.LikedByUsers)
-            .Include(comment => comment.DislikedByUsers).Include(comment => comment.Replies)
-            .ThenInclude(comment => comment.LikedByUsers).Include(comment => comment.Replies)
-            .ThenInclude(comment => comment.DislikedByUsers) // Include User for replies as well
+            .ThenInclude(r => r.User)
             .ToListAsync();
 
-        return comments.Select(comment => new CommentDTO
+        var commentDtos = new List<CommentDTO>();
+
+        foreach (var comment in comments)
         {
-            CommentId = comment.CommentId,
-            Text = comment.Text,
-            CreatedAt = comment.CreatedAt,
-            UpdatedAt = comment.UpdatedAt,
-            LikesCount = comment.LikedByUsers?.Count ?? 0,
-            DislikesCount = comment.DislikedByUsers?.Count ?? 0,
-            MovieId = comment.MovieId,
-            UserId = comment.UserId,
-            Username = comment.User?.Username ?? "Unknown",
-            ParentCommentId = comment.ParentCommentId,
-            QuotedCommentId = comment.QuotedCommentId,
-            // You'd need another query or include for QuotedText if needed frequently
-            Replies = comment.Replies.Select(reply => new CommentDTO
-            {
-                CommentId = reply.CommentId,
-                Text = reply.Text,
-                CreatedAt = reply.CreatedAt,
-                UpdatedAt = reply.UpdatedAt,
-                LikesCount = reply.LikedByUsers?.Count ?? 0,
-                DislikesCount = reply.DislikedByUsers?.Count ?? 0,
-                MovieId = reply.MovieId,
-                UserId = reply.UserId,
-                Username = reply.User?.Username ?? "Unknown",
-                ParentCommentId = reply.ParentCommentId,
-                QuotedCommentId = reply.QuotedCommentId,
-                Replies = new List<CommentDTO>() 
-            }).ToList()
-        }).ToList();
+            var dto = await BuildCommentDTOAsync(comment);
+            commentDtos.Add(dto);
+        }
+
+        return commentDtos;
     }
+
 
     public async Task<bool> LikeCommentAsync(int commentId, int userId)
-    {
-        var comment = await _context.Comments
-            .Include(c => c.LikedByUsers)
-            .Include(c => c.DislikedByUsers)
-            .FirstOrDefaultAsync(c => c.CommentId == commentId);
-
-        if (comment == null) return false;
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return false;
-
-        comment.DislikedByUsers.Remove(user);
-        if (!comment.LikedByUsers.Contains(user))
-            comment.LikedByUsers.Add(user);
-
-        await _context.SaveChangesAsync();
-        return true;
-    }
+        => await UpdateReactionAsync(commentId, userId, isLike: true);
 
     public async Task<bool> DislikeCommentAsync(int commentId, int userId)
+        => await UpdateReactionAsync(commentId, userId, isLike: false);
+
+    private async Task<bool> UpdateReactionAsync(int commentId, int userId, bool isLike)
     {
-        var comment = await _context.Comments
-            .Include(c => c.LikedByUsers)
-            .Include(c => c.DislikedByUsers)
-            .FirstOrDefaultAsync(c => c.CommentId == commentId);
+        var reaction = await _context.CommentReactions
+            .FirstOrDefaultAsync(cr => cr.CommentId == commentId && cr.UserId == userId);
 
-        if (comment == null) return false;
-
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null) return false;
-
-        comment.LikedByUsers.Remove(user);
-        if (!comment.DislikedByUsers.Contains(user))
-            comment.DislikedByUsers.Add(user);
+        if (reaction != null)
+        {
+            if (reaction.IsLike == isLike)
+            {
+                _context.CommentReactions.Remove(reaction);
+            }
+            else
+            {
+                reaction.IsLike = isLike;
+                _context.CommentReactions.Update(reaction);
+            }
+        }
+        else
+        {
+            var newReaction = new CommentReaction
+            {
+                CommentId = commentId,
+                UserId = userId,
+                IsLike = isLike
+            };
+            _context.CommentReactions.Add(newReaction);
+        }
 
         await _context.SaveChangesAsync();
         return true;
@@ -150,38 +195,51 @@ public class CommentService : ICommentService
 
    private async Task<CommentDTO> BuildCommentDTOAsync(Comment comment)
 {
+    // Load replies
     var replies = await _context.Comments
         .Where(r => r.ParentCommentId == comment.CommentId)
+        .Include(r => r.User)
         .ToListAsync();
 
-    Comment quotedCommentEntity = null;
+    // Load quoted comment
+    Comment? quotedCommentEntity = null;
     if (comment.QuotedCommentId.HasValue)
     {
-        quotedCommentEntity = await _context.Comments.FindAsync(comment.QuotedCommentId);
+        quotedCommentEntity = await _context.Comments
+            .Include(qc => qc.User)
+            .FirstOrDefaultAsync(qc => qc.CommentId == comment.QuotedCommentId.Value);
     }
 
-    CommentDTO quotedCommentDTO = null;
+    // Build quoted DTO
+    CommentDTO? quotedCommentDTO = null;
     if (quotedCommentEntity != null)
     {
         quotedCommentDTO = new CommentDTO
         {
             CommentId = quotedCommentEntity.CommentId,
             Text = quotedCommentEntity.Text,
-            Username = await _context.Users
-                .Where(u => u.Id == quotedCommentEntity.UserId)
-                .Select(u => u.Username)
-                .FirstOrDefaultAsync() ?? "Unknown",
+            Username = quotedCommentEntity.User?.Username ?? "Unknown",
             CreatedAt = quotedCommentEntity.CreatedAt,
-            // You can include other relevant properties if needed
         };
     }
 
-    string? quotedText = comment.QuotedCommentId.HasValue
-        ? await _context.Comments
-            .Where(q => q.CommentId == comment.QuotedCommentId)
-            .Select(q => q.Text)
-            .FirstOrDefaultAsync()
-        : null;
+    // Calculate reactions
+    var reactionCounts = await _context.CommentReactions
+        .Where(cr => cr.CommentId == comment.CommentId)
+        .GroupBy(cr => cr.IsLike)
+        .Select(g => new { IsLike = g.Key, Count = g.Count() })
+        .ToListAsync();
+
+    var likesCount = reactionCounts.FirstOrDefault(r => r.IsLike)?.Count ?? 0;
+    var dislikesCount = reactionCounts.FirstOrDefault(r => !r.IsLike)?.Count ?? 0;
+
+    // build replies sequentially to avoid concurrency exception
+    var repliesDto = new List<CommentDTO>();
+    foreach (var reply in replies)
+    {
+        var replyDto = await BuildCommentDTOAsync(reply);
+        repliesDto.Add(replyDto);
+    }
 
     return new CommentDTO
     {
@@ -189,23 +247,21 @@ public class CommentService : ICommentService
         Text = comment.Text,
         CreatedAt = comment.CreatedAt,
         UpdatedAt = comment.UpdatedAt,
-        LikesCount = comment.LikedByUsers?.Count ?? 0,
-        DislikesCount = comment.DislikedByUsers?.Count ?? 0,
+        LikesCount = likesCount,
+        DislikesCount = dislikesCount,
         MovieId = comment.MovieId,
+        MovieTitle = comment.Movie.Title,
         UserId = comment.UserId,
-        Username = await _context.Users
-            .Where(u => u.Id == comment.UserId)
-            .Select(u => u.Username)
-            .FirstOrDefaultAsync() ?? "Unknown",
+        Username = comment.User?.Username ?? "Unknown",
+        Author = comment.User != null ? $"{comment.User.FirstName} {comment.User.LastName}" : "N/A",
         ParentCommentId = comment.ParentCommentId,
         QuotedCommentId = comment.QuotedCommentId,
-        QuotedText = quotedText, // Using the locally defined quotedText
-        QuotedComment = quotedCommentDTO, // Using the created quotedCommentDTO
-        Replies = (await Task.WhenAll(replies.Select(BuildCommentDTOAsync))).ToList()
+        QuotedText = quotedCommentEntity?.Text,
+        QuotedComment = quotedCommentDTO,
+        Replies = repliesDto
     };
 }
 
 }
-
 
 

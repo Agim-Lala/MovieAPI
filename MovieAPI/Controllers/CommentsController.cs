@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MovieAPI.Domain.Comments;
 using MovieAPI.Services;
 using System.Security.Claims;
+using MovieAPI.Enums;
 
 namespace MovieAPI.Controllers;
 
@@ -17,7 +18,24 @@ public class CommentsController : ControllerBase
         _commentService = commentService;
     }
 
-   
+    [HttpGet("sorted")]
+    public async Task<IActionResult> GetSortedCommentsAsync(
+        [FromQuery] string sortBy,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool ascending = true)
+    {
+        if (!Enum.TryParse<CommentSortOption>(sortBy, true, out var sortOption))
+        {
+            return BadRequest(
+                $"Invalid sort option: {sortBy}. Valid options are: {string.Join(", ", Enum.GetNames(typeof(CommentSortOption)))}");
+        }
+
+        var (comments, totalCount) =
+            await _commentService.GetSortedCommentsAsync(sortOption, ascending, page, pageSize);
+        return Ok(new { comments, totalCount });
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<CommentDTO>> AddComment([FromBody] CreateCommentDTO dto)
