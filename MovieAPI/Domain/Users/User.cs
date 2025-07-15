@@ -11,33 +11,17 @@ public class User
     public string Username { get; set; }
     public string Email { get; set; }
     public string PasswordHash { get; set; }  
-    
     public DateTime CreatedAt { get; set; }
-
     public UserStatus Status { get; set; } = UserStatus.Approved;
     public UserRole Role { get; set; } = UserRole.Customer;
-    
     public ICollection<Comment> Comments { get; set; } = new List<Comment>();
-    
     public ICollection<CommentReaction> CommentReactions { get; set; } = new List<CommentReaction>();
-    
-    public List<Comment> LikedComments { get; set; } = new();
-    
-    public List<Comment> DislikedComments { get; set; } = new();
-    
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
-    
     public ICollection<ReviewReaction> Reactions { get; set; } = new List<ReviewReaction>();  
-
     public int SubscriptionPlanId { get; set; }
-    
     public SubscriptionPlan SubscriptionPlan { get; set; } = null!;
-    
     public DateTime SubscriptionStartDate { get; set; }
-    
     public DateTime? SubscriptionEndDate { get; set; }
-
-    
 }
 
 public enum UserRole
