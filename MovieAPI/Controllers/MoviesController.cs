@@ -13,11 +13,23 @@ namespace MovieAPI.Controllers
     public class MoviesController : ControllerBase
     {
         private readonly MovieService _movieService;
+        private readonly FileUploadHelper _fileUploadHelper;
 
         public MoviesController(MovieService movieService)
         {
             _movieService = movieService;
         }
+
+
+        [HttpPost]
+        [Consumes("multipart/form-data")]
+        public async Task<ActionResult<MovieDTO>> Create([FromForm] CreateMovieDTO dto)
+        {
+            var createdMovieDto = await _movieService.CreateMovieAsync(dto);
+            return CreatedAtAction(nameof(GetMovieById), new { id = createdMovieDto.MovieId }, createdMovieDto);
+        }
+
+
         
         [HttpGet("new")]
         public async Task<ActionResult<List<MovieDTO>>> GetNewMovies([FromQuery] int page = 1, [FromQuery] int pageSize = 5)
@@ -58,24 +70,6 @@ namespace MovieAPI.Controllers
                 return NotFound(new { Message = "Movie not found." });
             }
             return Ok(movie);
-        }
-        
-        
-        [Authorize(Policy = "AdminOnly")]
-        [HttpPost]
-        public async Task<IActionResult> CreateMovie(CreateMovieDTO movieDTO)
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            try
-            {
-                var movie = await _movieService.AddMovieAsync(movieDTO);
-                return CreatedAtAction(nameof(CreateMovie), new { id = movie.MovieId }, movie);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
         }
         
         [Authorize(Policy = "AdminOnly")]

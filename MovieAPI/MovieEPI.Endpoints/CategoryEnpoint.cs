@@ -27,12 +27,7 @@ namespace MovieAPI.MovieEPI.Endpoints
                 var category = categories.FirstOrDefault(c => c.CategoryId == id);
                 if (category == null) return Results.NotFound();
 
-                return Results.Ok(new CategoryDTO
-                {
-                    CategoryId = category.CategoryId,
-                    Name = category.Name
-
-                });
+                return Results.Ok(new CategoryDTO( category.CategoryId,category.Name));
             });
 
             // Create a category

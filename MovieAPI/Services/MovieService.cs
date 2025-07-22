@@ -13,10 +13,13 @@ namespace MovieAPI.Services
     public class MovieService
     {
         private readonly ApplicationDbContext _context;
+        private readonly FileUploadHelper _fileUploadHelper;
 
-        public MovieService(ApplicationDbContext context)
+        public MovieService(ApplicationDbContext context, FileUploadHelper fileUploadHelper)
         {
             _context = context;
+            _fileUploadHelper = fileUploadHelper;
+
         }
         
         
@@ -110,66 +113,59 @@ namespace MovieAPI.Services
             return MapToDTO(movie);
         }
 
-        public async Task<MovieDTO> AddMovieAsync(CreateMovieDTO movieDTO)
+        public async Task<MovieDTO> CreateMovieAsync(CreateMovieDTO dto)
         {
-            var director = await _context.Directors.FindAsync(movieDTO.DirectorId);
-            if (director == null) throw new Exception("Director not found");
+            
+            var imagePath = await _fileUploadHelper.UploadAsync(dto.CoverImage, "Images/covers") ?? "cover.jpg";
+            var videoPath = await _fileUploadHelper.UploadAsync(dto.VideoFile,  "Videos") ?? "movie.mp4";
 
-            var genres = await _context.Genres.Where(g => movieDTO.GenreIds.Contains(g.GenreId)).ToListAsync();
-            if (genres.Count != movieDTO.GenreIds.Count) throw new Exception("One or more genres are invalid");
-
-            var categories = await _context.Categories.Where(c => movieDTO.CategoryIds.Contains(c.CategoryId)).ToListAsync();
-            if (categories.Count != movieDTO.CategoryIds.Count) throw new Exception("One or more categories are invalid");
-            
-            var qualities = await _context.Qualities.Where(q => movieDTO.QualityIds.Contains(q.QualityId)).ToListAsync();
-            if (qualities.Count != movieDTO.QualityIds.Count) throw new Exception("One or more qualities are invalid");
-            
-            var actors = await _context.Actors.Where(a => movieDTO.ActorIds.Contains(a.ActorId)).ToListAsync();
-            if (actors.Count != movieDTO.ActorIds.Count) throw new Exception("One or more actors are invalid");
-            
-
-            var movieGenres = genres.Select(g => new MovieGenre { GenreId = g.GenreId }).ToList();
-            var movieCategories = categories.Select(c => new MovieCategory { CategoryId = c.CategoryId }).ToList();
-            var movieQualities = qualities.Select(q => new MovieQuality { QualityId = q.QualityId }).ToList(); 
-            var movieActors = actors.Select(a => new MovieActor { ActorId = a.ActorId }).ToList();
-            
 
             var movie = new Movie
             {
-                Title = movieDTO.Title,
-                ReleaseYear = movieDTO.ReleaseYear,
-                Description = movieDTO.Description,
-                DirectorId = movieDTO.DirectorId,
-                MovieGenres = movieGenres,
-                MovieCategories = movieCategories,
-                MovieQualities = movieQualities,
-                MovieActors = movieActors,
-                AddedAt = DateTime.UtcNow,
-                ImagePath = movieDTO.ImagePath 
-
+                Title         = dto.Title,
+                ReleaseYear   = dto.ReleaseYear,
+                Description   = dto.Description,
+                DirectorId    = dto.DirectorId,
+                RunningTime   = dto.RunningTime,
+                Link          = dto.Link,
+                AddedAt       = dto.AddedAt,
+                ImagePath     = imagePath,
+                VideoPath     = videoPath,
+                MovieGenres   = dto.GenreIds.Select(id => new MovieGenre { GenreId = id }).ToList(),
+                MovieCategories = dto.CategoryIds.Select(id => new MovieCategory { CategoryId = id }).ToList(),
+                MovieQualities = dto.QualityIds.Select(id => new MovieQuality { QualityId = id }).ToList(),
+                MovieActors   = dto.ActorIds.Select(id => new MovieActor { ActorId = id }).ToList()
             };
 
             _context.Movies.Add(movie);
             await _context.SaveChangesAsync();
+            var result = await _context.Movies
+                .Where(m => m.MovieId == movie.MovieId)
+                .Select(m => new MovieDTO
+                {
+                    MovieId      = m.MovieId,
+                    Title        = m.Title,
+                    ReleaseYear  = m.ReleaseYear,
+                    Description  = m.Description,
+                    DirectorName = m.Director.Name,
+                    Genres       = m.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
+                    Categories   = m.MovieCategories.Select(mc => mc.Category.Name).ToList(),
+                    Qualities    = m.MovieQualities.Select(mq => mq.Quality.QualityName).ToList(),
+                    Actors       = m.MovieActors.Select(ma => ma.Actor.ActorName).ToList(),
+                    AddedAt      = m.AddedAt,
+                    ImagePath    = m.ImagePath,
+                    VideoPath    = m.VideoPath,
+                    AverageRating= m.AverageRating,
+                    IsVisible    = m.IsVisible,
+                    Views        = m.Views
+                })
+                .FirstAsync();
 
-            
-            return new MovieDTO
-            {
-                MovieId = movie.MovieId,
-                Title = movie.Title,
-                ReleaseYear = movie.ReleaseYear,
-                Description = movie.Description,
-                DirectorName = director.Name,
-                Genres = genres.Select(g => g.Name).ToList(),
-                Categories = categories.Select(c => c.Name).ToList(),
-                Qualities = qualities.Select(q => q.QualityName).ToList(),
-                Actors = actors.Select(a => a.ActorName).ToList(),
-                AddedAt =movie.AddedAt,
-                ImagePath = movie.ImagePath 
+            return result;
 
-                
-            };
+
         }
+
         
         public async Task<bool> UpdateMovieAsync(int id, CreateMovieDTO updatedMovie)
         {
@@ -360,25 +356,6 @@ namespace MovieAPI.Services
 
             return uniqueViews;
         }
-
-        public async Task<string> UploadImageAsync(IFormFile file)
-        {
-            if (file == null || file.Length == 0)
-                throw new Exception("Invalid image upload.");
-
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
-            Directory.CreateDirectory(uploadsFolder); 
-
-            var uniqueFileName = $"{Guid.NewGuid()}_{file.FileName}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            await using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            return $"/images/{uniqueFileName}"; 
-        }
         
         private MovieDTO MapToDTO(Movie movie) => new MovieDTO
         {
@@ -393,6 +370,7 @@ namespace MovieAPI.Services
             Actors = movie.MovieActors?.Select(ma => ma.Actor?.ActorName).ToList() ?? new List<string>(), 
             AddedAt = movie.AddedAt,
             ImagePath = movie.ImagePath,
+            VideoPath = movie.VideoPath,
             AverageRating = movie.AverageRating,
             IsVisible = movie.IsVisible,
             Views = movie.Views

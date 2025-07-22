@@ -16,6 +16,7 @@
         public DateTime AddedAt { get; set; }
         
         public string ImagePath { get; set; }
+        public string VideoPath {get; set;}
         
         public double AverageRating { get; set; } 
         

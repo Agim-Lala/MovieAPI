@@ -2,9 +2,6 @@
 
 namespace MovieAPI.Domain.Categories
 {
-    public class CategoryDTO
-    {
-        public int CategoryId { get; set; }
-        public string Name { get; set; }
-    }
+    public record CategoryDTO(int Id, string Name )
+    { }
 }

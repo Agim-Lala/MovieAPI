@@ -37,7 +37,7 @@ namespace MovieAPI.Controllers;
             if (!ModelState.IsValid) return BadRequest();
             
             var createdGenre = await _genresService.CreateGenreAsync(genreDto);
-            return CreatedAtAction(nameof(GetGenreById), new { id = createdGenre.GenreId }, createdGenre);
+            return CreatedAtAction(nameof(GetGenreById), new { id = createdGenre.Id }, createdGenre);
         }
 
         [HttpPut("{id}")]

@@ -17,7 +17,7 @@ public class GenresService
     public async Task<List<GenreDTO>> GetAllGenresAsync()
     {
         return await _context.Genres
-            .Select(g => new GenreDTO {GenreId = g.GenreId , Name = g.Name}) 
+            .Select(g => new GenreDTO (g.GenreId ,g.Name)) 
             .ToListAsync();
     }
 
@@ -26,7 +26,7 @@ public class GenresService
         var genre = await _context.Genres.FindAsync(id);
         if (genre == null) return null;
         
-        return new GenreDTO {GenreId = genre.GenreId, Name = genre.Name};
+        return new GenreDTO (genre.GenreId,genre.Name);
     }
 
     public async Task<GenreDTO> CreateGenreAsync(CreateGenreDTO genreDto)
@@ -35,8 +35,7 @@ public class GenresService
         _context.Genres.Add(genre);
         await _context.SaveChangesAsync();
         
-        return new GenreDTO {GenreId = genre.GenreId, Name = genreDto.Name};
-    }
+        return new GenreDTO (genre.GenreId,genre.Name);    }
 
     public async Task<GenreDTO?> UpdateGenreAsync(int id, GenreDTO genreDto)
     {
@@ -46,8 +45,7 @@ public class GenresService
         genre.Name = genreDto.Name;
         await _context.SaveChangesAsync();
         
-        return new GenreDTO {GenreId = genre.GenreId, Name = genreDto.Name};
-    }
+        return new GenreDTO (genre.GenreId,genre.Name);    }
 
     public async Task<bool> DeleteGenreAsync(int id)
     {

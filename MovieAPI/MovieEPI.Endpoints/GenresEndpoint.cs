@@ -27,12 +27,7 @@ namespace MovieAPI.MovieEPI.Endpoints
                 var genre = genres.FirstOrDefault(g => g.GenreId == id);
                 if (genre == null) return Results.NotFound();
 
-                return Results.Ok(new GenreDTO
-                {
-                    GenreId = genre.GenreId,
-                    Name = genre.Name
-
-                });
+                return Results.Ok(new GenreDTO(genre.GenreId, genre.Name));
             });
 
             // Create a genre
