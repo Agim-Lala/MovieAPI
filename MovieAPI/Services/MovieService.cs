@@ -2,6 +2,7 @@
 using MovieAPI.Context;
 using MovieAPI.Domain.Actors;
 using MovieAPI.Domain.Categories;
+using MovieAPI.Domain.Directors;
 using MovieAPI.Domain.Genres;
 using MovieAPI.Domain.Movies;
 using MovieAPI.Domain.Qualities;
@@ -97,7 +98,7 @@ namespace MovieAPI.Services
             return movies.Select(MapToDTO).ToList();
         }
 
-        public async Task<MovieDTO?> GetMovieByIdAsync(int movieId)
+        public async Task<GetMovieByIdDTO?> GetMovieByIdAsync(int movieId)
         {
             var movie = await _context.Movies
                 .Where(m => m.MovieId == movieId)
@@ -110,7 +111,38 @@ namespace MovieAPI.Services
 
             if (movie == null) return null;
 
-            return MapToDTO(movie);
+            return new GetMovieByIdDTO
+            {
+                MovieId = movie.MovieId,
+                Title = movie.Title,
+                ReleaseYear = movie.ReleaseYear,
+                Description = movie.Description,
+                Director = new DirectorDTO(movie.DirectorId, movie.Director.Name),
+
+                Genres = movie.MovieGenres
+                    .Select(mg => new GenreDTO(mg.Genre.GenreId, mg.Genre.Name))
+                    .ToList(),
+
+                Categories = movie.MovieCategories
+                    .Select(mc => new CategoryDTO(mc.Category.CategoryId, mc.Category.Name))
+                    .ToList(),
+
+                Qualities = movie.MovieQualities
+                    .Select(mq => new QualityDTO(mq.Quality.QualityId, mq.Quality.QualityName))
+                    .ToList(),
+
+                Actors = movie.MovieActors
+                    .Select(ma => new ActorDTO(ma.Actor.ActorId, ma.Actor.ActorName))
+                    .ToList(),
+                AddedAt = movie.AddedAt,
+                ImagePath = movie.ImagePath,
+                VideoPath = movie.VideoPath,
+                AverageRating = movie.AverageRating,
+                RunningTime = movie.RunningTime,
+                Age = movie.Age,
+                Country = movie.Country,
+                Link = movie.Link
+            };
         }
 
         public async Task<MovieDTO> CreateMovieAsync(CreateMovieDTO dto)
@@ -129,6 +161,8 @@ namespace MovieAPI.Services
                 RunningTime   = dto.RunningTime,
                 Link          = dto.Link,
                 AddedAt       = dto.AddedAt,
+                Country       = dto.Country,
+                Age           = dto.Age,
                 ImagePath     = imagePath,
                 VideoPath     = videoPath,
                 MovieGenres   = dto.GenreIds.Select(id => new MovieGenre { GenreId = id }).ToList(),
@@ -155,9 +189,10 @@ namespace MovieAPI.Services
                     AddedAt      = m.AddedAt,
                     ImagePath    = m.ImagePath,
                     VideoPath    = m.VideoPath,
-                    AverageRating= m.AverageRating,
+                    Country      = m.Country,
+                    Age          = m.Age, 
                     IsVisible    = m.IsVisible,
-                    Views        = m.Views
+                    
                 })
                 .FirstAsync();
 
@@ -167,41 +202,69 @@ namespace MovieAPI.Services
         }
 
         
-        public async Task<bool> UpdateMovieAsync(int id, CreateMovieDTO updatedMovie)
+        public async Task<MovieDTO> UpdateMovieAsync(int id, UpdateMovieDTO dto)
         {
             var movie = await _context.Movies
-                .Include(m => m.MovieGenres)
-                .Include(m => m.MovieCategories)
-                .Include(m => m.MovieActors)
+                .Include(m => m.MovieGenres).ThenInclude(movieGenre => movieGenre.Genre)
+                .Include(m => m.MovieCategories).ThenInclude(movieCategory => movieCategory.Category)
+                .Include(m => m.MovieQualities).ThenInclude(movieQuality => movieQuality.Quality)
+                .Include(m => m.MovieActors).ThenInclude(movieActor => movieActor.Actor)
+                .Include(movie => movie.Director)
                 .FirstOrDefaultAsync(m => m.MovieId == id);
 
-            if (movie == null) return false;
+            if (movie == null)
+                throw new Exception("Movie not found.");
 
             
-            movie.Title = updatedMovie.Title;
-            movie.ReleaseYear = updatedMovie.ReleaseYear;
-            movie.Description = updatedMovie.Description;
-            movie.DirectorId = updatedMovie.DirectorId;
+            movie.Title = dto.Title;
+            movie.ReleaseYear = dto.ReleaseYear;
+            movie.Description = dto.Description;
+            movie.DirectorId = dto.DirectorId;
+            movie.RunningTime = dto.RunningTime;
+            movie.Link = dto.Link;
+            movie.Country = dto.Country;
+            movie.Age = dto.Age;
+            movie.Link = dto.Link;
+            
+            if (dto.CoverImage != null)
+            {
+                movie.ImagePath = await _fileUploadHelper.UploadAsync(dto.CoverImage, "Images/covers");
+            }
+
+           
+            if (dto.VideoFile != null)
+            {
+                movie.VideoPath = await _fileUploadHelper.UploadAsync(dto.VideoFile, "Videos");
+            }
 
             
-            _context.MovieGenres.RemoveRange(movie.MovieGenres);
-            movie.MovieGenres = updatedMovie.GenreIds
-                .Select(gid => new MovieGenre { GenreId = gid, MovieId = movie.MovieId })
-                .ToList();
-
+            movie.MovieGenres = dto.GenreIds.Select(genreId => new MovieGenre { MovieId = id, GenreId = genreId }).ToList();
+            movie.MovieCategories = dto.CategoryIds.Select(categoryId => new MovieCategory { MovieId = id, CategoryId = categoryId }).ToList();
+            movie.MovieQualities = dto.QualityIds.Select(qualityId => new MovieQuality { MovieId = id, QualityId = qualityId }).ToList();
+            movie.MovieActors = dto.ActorIds.Select(actorId => new MovieActor { MovieId = id, ActorId = actorId }).ToList();
             
-            _context.MovieCategories.RemoveRange(movie.MovieCategories);
-            movie.MovieCategories = updatedMovie.CategoryIds
-                .Select(cid => new MovieCategory { CategoryId = cid, MovieId = movie.MovieId })
-                .ToList();
-            
-            _context.MovieActors.RemoveRange(movie.MovieActors);
-            movie.MovieActors = updatedMovie.ActorIds
-                .Select(aid => new MovieActor { ActorId = aid, MovieId = movie.MovieId })
-                .ToList();
-
             await _context.SaveChangesAsync();
-            return true;
+
+           
+            return new MovieDTO
+            {
+                MovieId = movie.MovieId,
+                Title = movie.Title,
+                ReleaseYear = movie.ReleaseYear,
+                Description = movie.Description,
+                DirectorName = movie.Director.Name,
+                Country = movie.Country,
+                Age = movie.Age,
+                Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
+                Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
+                Actors = movie.MovieActors.Select(ma => ma.Actor.ActorName).ToList(),
+                Qualities = movie.MovieQualities.Select(mq => mq.Quality.QualityName).ToList(),
+                IsVisible = movie.IsVisible,
+                ImagePath = movie.ImagePath,
+                Link = movie.Link
+                
+                
+            };
         }
         public async Task<bool> DeleteMovieAsync(int movieId)
         {
@@ -364,6 +427,9 @@ namespace MovieAPI.Services
             ReleaseYear = movie.ReleaseYear,
             Description = movie.Description,
             DirectorName = movie.Director.Name,
+            RunningTime = movie.RunningTime,
+            Age = movie.Age,
+            Country = movie.Country,
             Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
             Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
             Qualities = movie.MovieQualities?.Select(mq => mq.Quality?.QualityName).ToList() ?? new List<string>(),
@@ -371,6 +437,7 @@ namespace MovieAPI.Services
             AddedAt = movie.AddedAt,
             ImagePath = movie.ImagePath,
             VideoPath = movie.VideoPath,
+            Link = movie.Link,
             AverageRating = movie.AverageRating,
             IsVisible = movie.IsVisible,
             Views = movie.Views

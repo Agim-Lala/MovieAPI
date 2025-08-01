@@ -62,6 +62,7 @@ namespace MovieAPI.Controllers
        
         
         [HttpGet("{id}")]
+     
         public async Task<IActionResult> GetMovieById(int id)
         {
             var movie = await _movieService.GetMovieByIdAsync(id);
@@ -72,18 +73,22 @@ namespace MovieAPI.Controllers
             return Ok(movie);
         }
         
-        [Authorize(Policy = "AdminOnly")]
+       
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateMovie(int id, [FromBody] CreateMovieDTO updatedMovie)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateMovie(int id, [FromForm] UpdateMovieDTO dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-            var result = await _movieService.UpdateMovieAsync(id, updatedMovie);
-            if (!result) return NotFound();
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
-            return NoContent();
+            var updatedMovie = await _movieService.UpdateMovieAsync(id, dto);
+            if (updatedMovie == null)
+                return NotFound();
+
+            return Ok(updatedMovie);
         }
 
-        [Authorize(Policy = "AdminOnly")]
+        
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMovie(int id)
         {

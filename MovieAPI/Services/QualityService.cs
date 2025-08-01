@@ -15,7 +15,7 @@ public class QualityService
     public async Task<List<QualityDTO>> GetAllQualitiesAsync()
     {
         return await _context.Qualities
-            .Select(q => new QualityDTO { Id = q.QualityId, Name = q.QualityName })
+            .Select(q => new QualityDTO (q.QualityId, q.QualityName ))
             .ToListAsync();
     }
 }

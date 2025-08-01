@@ -17,6 +17,8 @@ namespace MovieAPI.Domain.Movies
         public List<int> QualityIds { get; set; } = new List<int>(); 
         public List<int> ActorIds { get; set; } = new List<int>(); 
         public int RunningTime { get; set; }
+        public string Country { get; set; }
+        public int Age { get; set; }
         public string Link { get; set; }
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
         public IFormFile? CoverImage { get; set; }

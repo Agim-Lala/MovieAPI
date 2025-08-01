@@ -219,8 +219,15 @@ namespace MovieAPI.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Age")
+                        .HasColumnType("integer");
+
                     b.Property<double>("AverageRating")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Description")
                         .IsRequired()

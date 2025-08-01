@@ -29,6 +29,8 @@ namespace MovieAPI.Domain.Movies
         public ICollection<MovieActor> MovieActors { get; set; } = new List<MovieActor>(); 
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
         public int RunningTime { get; set; }
+        public int Age { get; set; }
+        public string Country { get; set; }
         public string Link { get; set; }
         public string ImagePath { get; set; }
         public string VideoPath { get; set; }

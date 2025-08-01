@@ -1,8 +1,5 @@
-﻿namespace MovieAPI.Domain.Qualities;
-
-public class QualityDTO
+﻿namespace MovieAPI.Domain.Qualities
 {
-    public int Id { get; set; }
-    public string Name { get; set; }
-    
+    public record QualityDTO(int Id , string Name)
+    { }
 }
