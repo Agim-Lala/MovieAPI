@@ -148,8 +148,17 @@ namespace MovieAPI.Services
         public async Task<MovieDTO> CreateMovieAsync(CreateMovieDTO dto)
         {
             
-            var imagePath = await _fileUploadHelper.UploadAsync(dto.CoverImage, "Images/covers") ?? "cover.jpg";
-            var videoPath = await _fileUploadHelper.UploadAsync(dto.VideoFile,  "Videos") ?? "movie.mp4";
+            string imagePath = "/Images/covers/default.jpg";
+            if (!string.IsNullOrWhiteSpace(dto.CoverImage))
+            {
+                imagePath = await _fileUploadHelper.SaveBase64ToFileAsync(dto.CoverImage, "/Images/covers", ".jpg");
+            }
+
+            string videoPath = "Videos/default.mp4";
+            if (!string.IsNullOrWhiteSpace(dto.VideoFile))
+            {
+                videoPath = await _fileUploadHelper.SaveBase64ToFileAsync(dto.VideoFile, "Videos", ".mp4");
+            }
 
 
             var movie = new Movie
@@ -228,13 +237,13 @@ namespace MovieAPI.Services
             
             if (dto.CoverImage != null)
             {
-                movie.ImagePath = await _fileUploadHelper.UploadAsync(dto.CoverImage, "Images/covers");
+                movie.ImagePath = await _fileUploadHelper.SaveBase64ToFileAsync(dto.CoverImage, "Images/covers", ".jpg");
             }
 
            
             if (dto.VideoFile != null)
             {
-                movie.VideoPath = await _fileUploadHelper.UploadAsync(dto.VideoFile, "Videos");
+                movie.VideoPath = await _fileUploadHelper.SaveBase64ToFileAsync(dto.VideoFile, "Videos" , ".mp4" );
             }
 
             
@@ -244,6 +253,11 @@ namespace MovieAPI.Services
             movie.MovieActors = dto.ActorIds.Select(actorId => new MovieActor { MovieId = id, ActorId = actorId }).ToList();
             
             await _context.SaveChangesAsync();
+            var categoryNames = await _context.MovieCategories
+                .Where(mc => mc.MovieId == id)
+                .Include(mc => mc.Category)
+                .Select(mc => mc.Category.Name)
+                .ToListAsync();
 
            
             return new MovieDTO
@@ -256,7 +270,7 @@ namespace MovieAPI.Services
                 Country = movie.Country,
                 Age = movie.Age,
                 Genres = movie.MovieGenres.Select(mg => mg.Genre.Name).ToList(),
-                Categories = movie.MovieCategories.Select(mc => mc.Category.Name).ToList(),
+                Categories = categoryNames,
                 Actors = movie.MovieActors.Select(ma => ma.Actor.ActorName).ToList(),
                 Qualities = movie.MovieQualities.Select(mq => mq.Quality.QualityName).ToList(),
                 IsVisible = movie.IsVisible,

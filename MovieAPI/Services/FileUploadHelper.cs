@@ -32,7 +32,23 @@ public class FileUploadHelper
         // Return relative path for DB
         return $"/{folder}/{fileName}";
     }
+    public async Task<string> SaveBase64ToFileAsync(string base64, string folder, string fileExtension)
+    {
+        var fileName = $"{Guid.NewGuid()}{fileExtension}";
+        folder = folder.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
+
+        // Correct full path
+        var folderPath = Path.Combine(_env.WebRootPath, folder);
+        Directory.CreateDirectory(folderPath); 
+
+        var fullPath = Path.Combine(folderPath, fileName);
+        var fileBytes = Convert.FromBase64String(base64);
+        await File.WriteAllBytesAsync(fullPath, fileBytes);
+
+        // Return relative path for DB
+        return "/" + Path.Combine(folder, fileName).Replace("\\", "/");
+    }
 
 
 }

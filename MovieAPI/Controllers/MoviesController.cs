@@ -22,8 +22,7 @@ namespace MovieAPI.Controllers
 
 
         [HttpPost]
-        [Consumes("multipart/form-data")]
-        public async Task<ActionResult<MovieDTO>> Create([FromForm] CreateMovieDTO dto)
+        public async Task<ActionResult<MovieDTO>> Create([FromBody] CreateMovieDTO dto)
         {
             var createdMovieDto = await _movieService.CreateMovieAsync(dto);
             return CreatedAtAction(nameof(GetMovieById), new { id = createdMovieDto.MovieId }, createdMovieDto);
@@ -75,8 +74,7 @@ namespace MovieAPI.Controllers
         
        
         [HttpPut("{id}")]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UpdateMovie(int id, [FromForm] UpdateMovieDTO dto)
+        public async Task<IActionResult> UpdateMovie(int id, [FromBody] UpdateMovieDTO dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);

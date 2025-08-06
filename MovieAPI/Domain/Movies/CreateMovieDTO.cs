@@ -21,9 +21,9 @@ namespace MovieAPI.Domain.Movies
         public int Age { get; set; }
         public string Link { get; set; }
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
-        public IFormFile? CoverImage { get; set; }
+        public string? CoverImage { get; set; }
         //public List<IFormFile>? GalleryImages {get; set;} 
-        public IFormFile? VideoFile { get; set; }
+        public string? VideoFile { get; set; }
 
     }
 }

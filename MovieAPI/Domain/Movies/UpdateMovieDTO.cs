@@ -15,6 +15,6 @@ public class UpdateMovieDTO
     public int DirectorId { get; set; }
     public string Link { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    public IFormFile? CoverImage { get; set; }
-    public IFormFile? VideoFile { get; set; }
+    public string? CoverImage { get; set; }
+    public string? VideoFile { get; set; }
 }
