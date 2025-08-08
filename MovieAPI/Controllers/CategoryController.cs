@@ -37,7 +37,7 @@ namespace MovieAPI.Controllers;
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var createdCategory = await _categoryService.CreateCategoryAsync(categoryDTO);
-            return CreatedAtAction(nameof(GetCategoryById), new { id = createdCategory.CategoryId }, createdCategory);
+            return CreatedAtAction(nameof(GetCategoryById), new { id = createdCategory.ToString() }, createdCategory);
         }
 
         [HttpPut("{id}")]

@@ -16,11 +16,15 @@
         public DateTime AddedAt { get; set; }
         
         public string ImagePath { get; set; }
+        public string VideoPath {get; set;}
         
         public double AverageRating { get; set; } 
-        
+        public int RunningTime { get; set; }
+        public int Age { get; set; }
+        public string Country { get; set; }
         public bool IsVisible { get; set; }    
         
+        public string Link { get; set; }
         public int Views { get; set; } 
     }
 }

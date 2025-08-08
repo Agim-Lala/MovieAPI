@@ -17,35 +17,28 @@ namespace MovieAPI.Domain.Movies
 
         [Required, StringLength(255)]
         public string Title { get; set; }
-
         [Range(1888, 2100)]
         public int ReleaseYear { get; set; }
-
         [StringLength(1000)]
         public string Description { get; set; }
-
         public int DirectorId { get; set; }
         public Director Director { get; set; }
-
         public ICollection<MovieGenre> MovieGenres { get; set; } = new List<MovieGenre>();
         public ICollection<MovieCategory> MovieCategories { get; set; } = new List<MovieCategory>();
-        
         public ICollection<MovieQuality> MovieQualities { get; set; } = new List<MovieQuality>();
-        
         public ICollection<MovieActor> MovieActors { get; set; } = new List<MovieActor>(); 
-        
         public DateTime AddedAt { get; set; } = DateTime.UtcNow; 
-        
+        public int RunningTime { get; set; }
+        public int Age { get; set; }
+        public string Country { get; set; }
+        public string Link { get; set; }
         public string ImagePath { get; set; }
-        
+        public string VideoPath { get; set; }
+        public ICollection<MovieGalleryImage> GalleryImages { get; set; } = new List<MovieGalleryImage>();
         public ICollection<Comment> Comments { get; set; } = new List<Comment>();
-        
         public ICollection<Review> Reviews { get; set; } = new List<Review>();
-
         public double AverageRating { get; set; } 
-        
         public bool IsVisible { get; set; } = true;  
-        
         public int Views { get; set; } = 0;
 
 

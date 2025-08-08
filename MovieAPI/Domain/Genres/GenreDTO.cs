@@ -2,9 +2,6 @@
 
 namespace MovieAPI.Domain.Genres
 {
-    public class GenreDTO
-    {
-        public int GenreId { get; set; }
-        public string Name { get; set; }
-    }
+    public record GenreDTO (int Id, string Name)
+    { }
 }

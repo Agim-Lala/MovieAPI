@@ -219,8 +219,15 @@ namespace MovieAPI.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Age")
+                        .HasColumnType("integer");
+
                     b.Property<double>("AverageRating")
                         .HasColumnType("double precision");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Description")
                         .IsRequired()
@@ -237,13 +244,24 @@ namespace MovieAPI.Migrations
                     b.Property<bool>("IsVisible")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Link")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("ReleaseYear")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RunningTime")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<string>("VideoPath")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<int>("Views")
                         .HasColumnType("integer");
@@ -253,6 +271,28 @@ namespace MovieAPI.Migrations
                     b.HasIndex("DirectorId");
 
                     b.ToTable("Movies");
+                });
+
+            modelBuilder.Entity("MovieAPI.Domain.Movies.MovieGalleryImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ImagePath")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("MovieId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MovieId");
+
+                    b.ToTable("MovieGalleryImage");
                 });
 
             modelBuilder.Entity("MovieAPI.Domain.Qualities.MovieQuality", b =>
@@ -592,6 +632,17 @@ namespace MovieAPI.Migrations
                     b.Navigation("Director");
                 });
 
+            modelBuilder.Entity("MovieAPI.Domain.Movies.MovieGalleryImage", b =>
+                {
+                    b.HasOne("MovieAPI.Domain.Movies.Movie", "Movie")
+                        .WithMany("GalleryImages")
+                        .HasForeignKey("MovieId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Movie");
+                });
+
             modelBuilder.Entity("MovieAPI.Domain.Qualities.MovieQuality", b =>
                 {
                     b.HasOne("MovieAPI.Domain.Movies.Movie", "Movie")
@@ -709,6 +760,8 @@ namespace MovieAPI.Migrations
             modelBuilder.Entity("MovieAPI.Domain.Movies.Movie", b =>
                 {
                     b.Navigation("Comments");
+
+                    b.Navigation("GalleryImages");
 
                     b.Navigation("MovieActors");
 

@@ -48,7 +48,7 @@ namespace MovieAPI.Controllers;
 
             var directorDTO = await _directorService.CreateDirectorAsync(createDirectorDTO);
 
-            return CreatedAtAction(nameof(GetDirectorById), new { id = directorDTO.DirectorId }, directorDTO);
+            return CreatedAtAction(nameof(GetDirectorById), new { id = directorDTO.Id }, directorDTO);
         }
 
         // PUT: api/director/{id}

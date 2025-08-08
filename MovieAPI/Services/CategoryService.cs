@@ -16,7 +16,7 @@ public class CategoryService
     public async Task<List<CategoryDTO>> GetAllCategoriesAsync()
     {
         return await _context.Categories
-            .Select(c => new CategoryDTO { CategoryId = c.CategoryId, Name = c.Name })
+            .Select(c => new CategoryDTO (c.CategoryId, c.Name ))
             .ToListAsync();
     }
 
@@ -25,7 +25,7 @@ public class CategoryService
         var category = await _context.Categories.FindAsync(id);
         if (category == null) return null;
 
-        return new CategoryDTO { CategoryId = category.CategoryId, Name = category.Name };
+        return new CategoryDTO ( category.CategoryId, category.Name );
     }
 
     public async Task<CategoryDTO> CreateCategoryAsync(CreateCategoryDTO categoryDTO)
@@ -34,7 +34,7 @@ public class CategoryService
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
 
-        return new CategoryDTO { CategoryId = category.CategoryId,Name = category.Name };
+        return new CategoryDTO ( category.CategoryId, category.Name );
     }
 
     public async Task<CategoryDTO?> UpdateCategoryAsync(int id, CategoryDTO categoryDTO)
@@ -45,7 +45,7 @@ public class CategoryService
         category.Name = categoryDTO.Name;
         await _context.SaveChangesAsync();
 
-        return new CategoryDTO { CategoryId = category.CategoryId, Name = category.Name };
+        return new CategoryDTO ( category.CategoryId, category.Name );
     }
 
     public async Task<bool> DeleteCategoryAsync(int id)
