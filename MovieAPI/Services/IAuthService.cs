@@ -18,4 +18,6 @@ public interface IAuthService
     Task<UserDto> UpdateUserAsync(int id, UpdateUserProfileDto userDto);
     Task AssignSubscriptionToUserAsync(int userId, int planId);
     Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto);
+
+    Task<UserStatus?> ToggleUserStatusAsync(int userId);
 }

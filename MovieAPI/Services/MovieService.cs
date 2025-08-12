@@ -22,11 +22,17 @@ namespace MovieAPI.Services
             _fileUploadHelper = fileUploadHelper;
 
         }
-        
-        
-        public async Task<(List<MovieDTO> Movies, int TotalCount)> GetSortedMoviesAsync(MovieSortOption sortBy, bool ascending = true, int page =1, int pageSize=10)
+
+
+        public async Task<(List<MovieDTO> Movies, int TotalCount)> GetSortedMoviesAsync(
+            MovieSortOption sortBy,
+            bool ascending = true,
+            int page = 1,
+            int pageSize = 10,
+            string search = null 
+        )
         {
-            var query = _context.Movies
+            var moviesQuery = _context.Movies
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
                 .Include(m => m.Director)
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
@@ -34,38 +40,50 @@ namespace MovieAPI.Services
                 .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
                 .AsQueryable();
 
-            // Apply sorting
-            query = (sortBy, ascending) switch
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(search))
             {
-                (MovieSortOption.Id, true) => query.OrderBy(m => m.MovieId),
-                (MovieSortOption.Id, false) => query.OrderByDescending(m => m.MovieId),
-                (MovieSortOption.Title, true) => query.OrderBy(m => m.Title),
-                (MovieSortOption.Title, false) => query.OrderByDescending(m => m.Title),
-                (MovieSortOption.Rating, true) => query.OrderBy(m => m.AverageRating),
-                (MovieSortOption.Rating, false) => query.OrderByDescending(m => m.AverageRating),
-                (MovieSortOption.Views, true) => query.OrderBy(m => m.Views),
-                (MovieSortOption.Views, false) => query.OrderByDescending(m => m.Views),
-                (MovieSortOption.CreatedAt, true) => query.OrderBy(m => m.AddedAt),
-                (MovieSortOption.CreatedAt, false) => query.OrderByDescending(m => m.AddedAt),
-                (MovieSortOption.Status, true) => query.OrderBy(m => m.IsVisible),
-                (MovieSortOption.Status, false) => query.OrderByDescending(m => m.IsVisible),
-                (MovieSortOption.Category, true) => query.OrderBy(m => m.MovieCategories.FirstOrDefault().Category.Name),
-                (MovieSortOption.Category, false) => query.OrderByDescending(m => m.MovieCategories.FirstOrDefault().Category.Name),
-                _ => query.OrderByDescending(m => m.MovieId)
+                var lowered = search.ToLower();
+                moviesQuery = moviesQuery.Where(m =>
+                        m.Title.ToLower().Contains(lowered) ||
+                        m.Description.ToLower().Contains(lowered)
+                    
+                );
+            }
+
+
+            // Apply sorting
+            moviesQuery = (sortBy, ascending) switch
+            {
+                (MovieSortOption.Id, true) => moviesQuery.OrderBy(m => m.MovieId),
+                (MovieSortOption.Id, false) => moviesQuery.OrderByDescending(m => m.MovieId),
+                (MovieSortOption.Title, true) => moviesQuery.OrderBy(m => m.Title),
+                (MovieSortOption.Title, false) => moviesQuery.OrderByDescending(m => m.Title),
+                (MovieSortOption.Rating, true) => moviesQuery.OrderBy(m => m.AverageRating),
+                (MovieSortOption.Rating, false) => moviesQuery.OrderByDescending(m => m.AverageRating),
+                (MovieSortOption.Views, true) => moviesQuery.OrderBy(m => m.Views),
+                (MovieSortOption.Views, false) => moviesQuery.OrderByDescending(m => m.Views),
+                (MovieSortOption.CreatedAt, true) => moviesQuery.OrderBy(m => m.AddedAt),
+                (MovieSortOption.CreatedAt, false) => moviesQuery.OrderByDescending(m => m.AddedAt),
+                (MovieSortOption.Status, true) => moviesQuery.OrderBy(m => m.IsVisible),
+                (MovieSortOption.Status, false) => moviesQuery.OrderByDescending(m => m.IsVisible),
+                (MovieSortOption.Category, true) => moviesQuery.OrderBy(m =>
+                    m.MovieCategories.FirstOrDefault().Category.Name),
+                (MovieSortOption.Category, false) => moviesQuery.OrderByDescending(m =>
+                    m.MovieCategories.FirstOrDefault().Category.Name),
+                _ => moviesQuery.OrderByDescending(m => m.MovieId)
             };
 
-            int totalCount = await query.CountAsync();
-            
-            var movies= await query
+            int totalCount = await moviesQuery.CountAsync();
+
+            var movies = await moviesQuery
                 .Skip((page - 1) * pageSize)
-                .Take(pageSize)     
+                .Take(pageSize)
                 .ToListAsync();
 
             return (movies.Select(MapToDTO).ToList(), totalCount);
-
         }
-        
-        
+
         public async Task<List<MovieDTO>> GetNewMoviesAsync(int page, int pageSize)
         {
             var movies = await _context.Movies
@@ -75,6 +93,7 @@ namespace MovieAPI.Services
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Where(m => m.IsVisible)
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -92,7 +111,8 @@ namespace MovieAPI.Services
                 .Include(m => m.MovieQualities)
                 .ThenInclude(mq => mq.Quality)
                 .Include(m => m.Director)
-                .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor) 
+                .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
+                .Where(m => m.IsVisible)
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -308,6 +328,7 @@ namespace MovieAPI.Services
         {
             var movies = await _context.Movies
                 .Where(m => m.MovieCategories.Any(mc => mc.CategoryId == categoryId))
+                .Where(m => m.IsVisible)
                 .OrderByDescending(m => m.ReleaseYear)
                 .Include(m => m.Director)
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
@@ -353,7 +374,7 @@ namespace MovieAPI.Services
             return movies.Select(MapToDTO).ToList();
         }
         
-        public async Task<List<MovieDTO>> GetFilteredMoviesAsync(int? genreId, int? startYear, int? endYear, int? qualityId)
+        public async Task<List<MovieDTO>> GetFilteredMoviesAsync(int? genreId, int? startYear, int? endYear, int? qualityId, int page = 1, int pageSize= 18)
         {
             Console.WriteLine($"Filters Received -> GenreID: {genreId}, StartYear: {startYear}, EndYear: {endYear} ,QualityId: {qualityId}");
 
@@ -361,7 +382,8 @@ namespace MovieAPI.Services
                 .Include(m => m.Director)
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
-                .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality) 
+                .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+                .Where(m => m.IsVisible)
                 .AsQueryable();
 
             if (genreId.HasValue)
@@ -386,11 +408,29 @@ namespace MovieAPI.Services
                 query = query.Where(m => m.MovieQualities.Any(mq => mq.QualityId == qualityId));
             }
 
-            var movies = await query.ToListAsync();
+            page = Math.Max(page, 1);
+
+            var movies = await query
+                .OrderBy(m => m.MovieId)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
             Console.WriteLine($"Movies Found After Filtering: {movies.Count}");
 
             return movies.Select(MapToDTO).ToList();
+        }
+        
+        public async Task<bool?> ToggleMovieVisibilityAsync(int id)
+        {
+            var movie = await _context.Movies.FindAsync(id);
+            if (movie == null)
+                return null;
+
+            movie.IsVisible = !movie.IsVisible;
+            await _context.SaveChangesAsync();
+
+            return movie.IsVisible;
         }
         
         //VIEWS 

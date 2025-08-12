@@ -221,6 +221,25 @@ public class AuthService : IAuthService
         return true;
     }
     
+    public async Task<UserStatus?> ToggleUserStatusAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            return null; // or throw an exception if you prefer
+
+        if (user.Status == UserStatus.Approved)
+        {
+            user.Status = UserStatus.Banned;
+        }
+        else if (user.Status == UserStatus.Banned)
+        {
+            user.Status = UserStatus.Approved;
+        }
+
+        await _context.SaveChangesAsync();
+        return user.Status;
+    }
+    
     public async Task AssignSubscriptionToUserAsync(int userId, int planId)
     {
         var user = await _context.Users.FindAsync(userId);

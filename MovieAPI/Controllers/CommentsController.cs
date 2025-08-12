@@ -56,7 +56,7 @@ public class CommentsController : ControllerBase
     }
 
     [HttpDelete("{commentId}")]
-    [Authorize]
+    
     public async Task<IActionResult> DeleteComment(int commentId)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);

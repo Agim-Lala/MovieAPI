@@ -101,4 +101,11 @@ public class AuthController : ControllerBase
         await _authService.AssignSubscriptionToUserAsync(id, planId);
         return Ok(new { message = "Subscription updated" });
     }
+    
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> ToggleStatus(int id)
+    {
+        var newStatus = await _authService.ToggleUserStatusAsync(id);
+        return Ok(new { status = newStatus });
+    }
 }

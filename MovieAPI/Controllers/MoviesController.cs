@@ -41,14 +41,15 @@ namespace MovieAPI.Controllers
 
         [HttpGet("sorted")]
         public async Task<IActionResult> GetSortedMoviesAsync([FromQuery] string sortBy, int page, int pageSize,
-            [FromQuery] bool ascending = true)
+            [FromQuery] bool ascending = true,
+            [FromQuery] string movieQuery = null)
         {
             if (!Enum.TryParse<MovieSortOption>(sortBy, true, out var sortOption))
             {
                 return BadRequest($"Invalid sort option: {sortBy}. Valid options are: {string.Join(", ", Enum.GetNames(typeof(MovieSortOption)))}");
             }
             
-            var (movies, totalCount) = await _movieService.GetSortedMoviesAsync(sortOption, ascending, page, pageSize);
+            var (movies, totalCount) = await _movieService.GetSortedMoviesAsync(sortOption, ascending, page, pageSize, movieQuery);
             return Ok(new {movies,totalCount});
         }
         
@@ -129,9 +130,11 @@ namespace MovieAPI.Controllers
             [FromQuery] int? genreId,
             [FromQuery] int? startYear,
             [FromQuery] int? endYear,
-            [FromQuery] int? qualityId) 
+            [FromQuery] int? qualityId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 18) 
         {
-            var movies = await _movieService.GetFilteredMoviesAsync(genreId, startYear, endYear, qualityId); 
+            var movies = await _movieService.GetFilteredMoviesAsync(genreId, startYear, endYear, qualityId, page, pageSize); 
             return Ok(movies);
         }
         
@@ -206,6 +209,16 @@ namespace MovieAPI.Controllers
             {
                 return StatusCode(500, "Error retrieving monthly unique views.");
             }
+        }
+        
+        [HttpPut("{id}/toggle-visibility")]
+        public async Task<IActionResult> ToggleVisibility(int id)
+        {
+            var visibility = await _movieService.ToggleMovieVisibilityAsync(id);
+            if (visibility is null)
+                return NotFound(new { message = "Movie not found" });
+
+            return Ok(new { isVisible = visibility });
         }
     }
     
