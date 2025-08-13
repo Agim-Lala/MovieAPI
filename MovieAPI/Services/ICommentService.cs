@@ -13,4 +13,7 @@ public interface ICommentService
     Task<bool> LikeCommentAsync(int commentId, int userId);
     Task<bool> DislikeCommentAsync(int commentId, int userId);
     Task<CommentDTO?> UpdateCommentAsync(int commentId, UpdateCommentDTO dto, int userId);
+    Task<bool> AdminDeleteCommentAsync(int commentId);
+    Task<CommentDTO?> GetCommentByIdAsync(int commentId);
+
 }

@@ -21,6 +21,7 @@ public class Comment
     public ICollection<Comment> Replies { get; set; } = new List<Comment>();
     public int? QuotedCommentId { get; set; }
     public Comment? QuotedComment { get; set; }
+    public bool IsDeleted { get; set; } = false;
     public ICollection<CommentReaction> Reactions { get; set; } = new List<CommentReaction>();
     
 

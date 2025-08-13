@@ -71,6 +71,20 @@ public class ReviewsController : ControllerBase {
         
         return Ok(updatedReview);
 
+        
 
+    }
+    
+    [HttpDelete("{id}")]
+    public async Task<ActionResult> DeleteReview(int id)
+    {
+        var deleted = await _service.DeleteReviewAsync(id);
+
+        if (!deleted)
+        {
+            return NotFound(); 
+        }
+
+        return Ok(); 
     }
 }

@@ -16,4 +16,6 @@ public interface IReviewService
     Task<bool>ReactToReviewAsync(int reviewId, int userId, bool isLike);
 
     Task<ReviewDTO> GetReviewByIdAsync(int reviewID);
+
+    Task<bool> DeleteReviewAsync(int id);
 }

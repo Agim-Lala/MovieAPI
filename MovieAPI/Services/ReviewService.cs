@@ -166,6 +166,17 @@ public class ReviewService : IReviewService
         
     }
 
+    public async Task<bool> DeleteReviewAsync(int id)
+    {
+        var review = await _context.Reviews.FindAsync(id);
+        if (review == null) return false;
+
+        _context.Reviews.Remove(review);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
 
     private ReviewDTO MapToDto(Review review)
     {
