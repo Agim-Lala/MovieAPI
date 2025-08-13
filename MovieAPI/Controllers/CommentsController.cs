@@ -35,7 +35,16 @@ public class CommentsController : ControllerBase
             await _commentService.GetSortedCommentsAsync(sortOption, ascending, page, pageSize);
         return Ok(new { comments, totalCount });
     }
+    [HttpGet("{commentId}")]
+    public async Task<ActionResult<CommentDTO>> GetCommentById(int commentId)
+    {
+        var comment = await _commentService.GetCommentByIdAsync(commentId);
 
+        if (comment == null)
+            return NotFound("Comment not found.");
+
+        return Ok(comment);
+    }
     [HttpPost]
     [Authorize]
     public async Task<ActionResult<CommentDTO>> AddComment([FromBody] CreateCommentDTO dto)
@@ -63,6 +72,15 @@ public class CommentsController : ControllerBase
         var deleted = await _commentService.DeleteCommentAsync(commentId, userId);
         if (!deleted) return NotFound("Comment not found or not authorized.");
         return NoContent();
+    }
+    
+    [HttpDelete("admin/comments/{id}")]
+    public async Task<IActionResult> AdminDeleteComment(int id)
+    {
+        var result = await _commentService.AdminDeleteCommentAsync(id);
+        if (!result) return NotFound("Comment not found");
+
+        return Ok("Comment deleted successfully");
     }
 
     [HttpGet("movie/{movieId}")]

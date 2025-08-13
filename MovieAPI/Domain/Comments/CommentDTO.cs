@@ -18,4 +18,5 @@ public class CommentDTO
     public string? QuotedText { get; set; } 
     public CommentDTO? QuotedComment { get; set; } 
     public List<CommentDTO> Replies { get; set; } = new();
+    public bool isDeleted { get; set; }
 }

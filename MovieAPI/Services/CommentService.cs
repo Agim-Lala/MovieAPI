@@ -23,7 +23,15 @@ public class CommentService : ICommentService
         var query = _context.Comments
             .Include(c => c.User)
             .Include(c => c.Movie)
+            .Include(c => c.Replies)
             .AsQueryable();
+
+        query = query.Where(c =>
+            !c.IsDeleted
+            || c.Replies.Any(r => !r.IsDeleted)
+            || (c.QuotedCommentId != null &&
+                _context.Comments.Any(qc => qc.CommentId == c.QuotedCommentId && !qc.IsDeleted))
+        );
         
 
         query = (sortBy, ascending) switch
@@ -59,6 +67,18 @@ public class CommentService : ICommentService
 
         return (commentDtos, totalCount);
     }
+    public async Task<CommentDTO?> GetCommentByIdAsync(int commentId)
+    {
+        var comment = await _context.Comments
+            .Include(c => c.User)
+            .Include(c => c.Movie)
+            .FirstOrDefaultAsync(c => c.CommentId == commentId);
+
+        if (comment == null)
+            return null;
+
+        return await BuildCommentDTOAsync(comment);
+    }
 
     public async Task<CommentDTO> AddCommentAsync(CreateCommentDTO dto, int userId)
     {
@@ -92,23 +112,64 @@ public class CommentService : ICommentService
 
     public async Task<bool> DeleteCommentAsync(int commentId, int userId)
     {
-        var comment = await _context.Comments.FirstOrDefaultAsync(c => c.CommentId == commentId && c.UserId == userId);
+        var comment = await _context.Comments
+            .Include(c => c.Replies)
+            .FirstOrDefaultAsync(c => c.CommentId == commentId && c.UserId == userId);
+
         if (comment == null) return false;
 
-        _context.Comments.Remove(comment);
+      
+        if (comment.ParentCommentId == null)
+        {
+            bool hasActiveReplies = comment.Replies.Any(r => !r.IsDeleted);
+            if (hasActiveReplies)
+            {
+                return false; 
+            }
+        }
+
+        comment.IsDeleted = true;
+        comment.Text = "Deleted";
         await _context.SaveChangesAsync();
+        return true;
+    }
+    
+     public async Task<bool> AdminDeleteCommentAsync(int commentId)
+    {
+        var comment = await _context.Comments.FirstOrDefaultAsync(c => c.CommentId == commentId);
+        if (comment == null) return false;
+
+        comment.IsDeleted = true;
+        await _context.SaveChangesAsync();
+
+        if (await IsCommentAndAllChildrenDeletedAsync(commentId))
+        {
+            await PermanentlyDeleteCommentAsync(commentId);
+            await _context.SaveChangesAsync();
+        }
+        
         return true;
     }
 
     public async Task<List<CommentDTO>> GetCommentsByUserAsync(int userId)
     {
         var comments = await _context.Comments
-            .Where(c => c.UserId == userId && c.ParentCommentId == null)
+            .Where(c => 
+                c.UserId == userId && 
+                c.ParentCommentId == null &&
+                (
+                    !c.IsDeleted
+                    || c.Replies.Any(r => !r.IsDeleted)
+                    || (c.QuotedCommentId != null &&
+                        _context.Comments.Any(qc => qc.CommentId == c.QuotedCommentId && !qc.IsDeleted))
+                )
+            )
             .Include(c => c.User)
-            .Include(c =>c.Movie)
-            .Include(c => c.Replies)
-                .ThenInclude(r => r.User)
+            .Include(c => c.Movie)
+            .Include(c => c.Replies.Where(r => !r.IsDeleted))
+            .ThenInclude(r => r.User)
             .ToListAsync();
+
 
        var commentDtos = new List<CommentDTO>();
        
@@ -123,10 +184,20 @@ public class CommentService : ICommentService
     public async Task<List<CommentDTO>> GetCommentsByMovieAsync(int movieId)
     {
         var comments = await _context.Comments
-            .Where(c => c.MovieId == movieId && c.ParentCommentId == null)
+            .Where(c => 
+                c.MovieId == movieId && 
+                c.ParentCommentId == null &&
+                (
+                    !c.IsDeleted
+                    || c.Replies.Any(r => !r.IsDeleted)
+                    || (c.QuotedCommentId != null &&
+                        _context.Comments.Any(qc => qc.CommentId == c.QuotedCommentId && !qc.IsDeleted))
+                )
+            )
             .Include(c => c.User)
             .Include(c =>c.Movie)
             .Include(c => c.Replies)
+            .Include(c => c.Replies.Where(r => !r.IsDeleted))
             .ThenInclude(r => r.User)
             .ToListAsync();
 
@@ -210,17 +281,18 @@ public class CommentService : ICommentService
             .FirstOrDefaultAsync(qc => qc.CommentId == comment.QuotedCommentId.Value);
     }
 
-    // Build quoted DTO
+    // Build quoted DTO recursively (same as replies)
     CommentDTO? quotedCommentDTO = null;
     if (quotedCommentEntity != null)
     {
-        quotedCommentDTO = new CommentDTO
+        // Recursively build DTO for quoted comment, to handle nested quotes/replies
+        quotedCommentDTO = await BuildCommentDTOAsync(quotedCommentEntity);
+
+        // If quoted comment is deleted, override text to "Deleted"
+        if (quotedCommentEntity.IsDeleted)
         {
-            CommentId = quotedCommentEntity.CommentId,
-            Text = quotedCommentEntity.Text,
-            Username = quotedCommentEntity.User?.Username ?? "Unknown",
-            CreatedAt = quotedCommentEntity.CreatedAt,
-        };
+            quotedCommentDTO.Text = "Deleted";
+        }
     }
 
     // Calculate reactions
@@ -241,10 +313,13 @@ public class CommentService : ICommentService
         repliesDto.Add(replyDto);
     }
 
+    // If current comment is deleted, show "Deleted" as text
+    var commentText = comment.IsDeleted ? "Deleted" : comment.Text;
+
     return new CommentDTO
     {
         CommentId = comment.CommentId,
-        Text = comment.Text,
+        Text = commentText,
         CreatedAt = comment.CreatedAt,
         UpdatedAt = comment.UpdatedAt,
         LikesCount = likesCount,
@@ -260,6 +335,49 @@ public class CommentService : ICommentService
         QuotedComment = quotedCommentDTO,
         Replies = repliesDto
     };
+}
+private async Task<bool> IsCommentAndAllChildrenDeletedAsync(int commentId)
+{
+    var comment = await _context.Comments
+        .Include(c => c.Replies)
+        .FirstOrDefaultAsync(c => c.CommentId == commentId);
+
+    if (comment == null) return true; // missing treated as deleted
+
+    if (!comment.IsDeleted) return false; // active comment found
+
+    // Check replies recursively
+    foreach (var reply in comment.Replies)
+    {
+        bool childDeleted = await IsCommentAndAllChildrenDeletedAsync(reply.CommentId);
+        if (!childDeleted) return false;
+    }
+
+    // Check quoted comment recursively
+    if (comment.QuotedCommentId.HasValue)
+    {
+        bool quotedDeleted = await IsCommentAndAllChildrenDeletedAsync(comment.QuotedCommentId.Value);
+        if (!quotedDeleted) return false;
+    }
+
+    return true; // all deleted
+}
+private async Task PermanentlyDeleteCommentAsync(int commentId)
+{
+    var comment = await _context.Comments
+        .Include(c => c.Replies)
+        .FirstOrDefaultAsync(c => c.CommentId == commentId);
+
+    if (comment == null) return;
+
+    // Delete replies recursively
+    foreach (var reply in comment.Replies)
+    {
+        await PermanentlyDeleteCommentAsync(reply.CommentId);
+    }
+
+    // Delete the comment itself
+    _context.Comments.Remove(comment);
 }
 
 }
