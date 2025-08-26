@@ -13,11 +13,11 @@ public interface IAuthService
     Task<UserDto> UpdateMeAsync(ClaimsPrincipal user, UpdateUserDto dto);
 
     Task<(List<UserDto> Users, int TotalCount)> GetSortedUsersAsync(UserSortOption sortBy,
-        bool ascending = true, int page = 1, int pageSize = 10);
+        bool ascending = true, int page = 1, int pageSize = 10 , string search = null);
 
     Task<UserDto> UpdateUserAsync(int id, UpdateUserProfileDto userDto);
     Task AssignSubscriptionToUserAsync(int userId, int planId);
     Task<bool> ChangePasswordAsync(int userId, ChangePasswordDto dto);
-
+    Task<List<SubscriptionPlanDTO>> GetAvailablePlansForUserAsync(int? userId= null);
     Task<UserStatus?> ToggleUserStatusAsync(int userId);
 }

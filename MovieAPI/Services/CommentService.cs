@@ -13,12 +13,19 @@ public class CommentService : ICommentService
     {
         _context = context;
     }
+
+    public async Task<int> GetNewCommentsCountAsync()
+    {
+        var firstDayOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        return await _context.Comments.CountAsync(c => c.CreatedAt >= firstDayOfMonth);
+    }
     
     public async Task<(List<CommentDTO> Comments, int TotalCount)> GetSortedCommentsAsync(
         CommentSortOption sortBy,
         bool ascending = true,
         int page = 1,
-        int pageSize = 10)
+        int pageSize = 10,
+        string search = null)
     {
         var query = _context.Comments
             .Include(c => c.User)
@@ -33,6 +40,7 @@ public class CommentService : ICommentService
                 _context.Comments.Any(qc => qc.CommentId == c.QuotedCommentId && !qc.IsDeleted))
         );
         
+      
 
         query = (sortBy, ascending) switch
         {
@@ -50,6 +58,17 @@ public class CommentService : ICommentService
 
             _ => query.OrderByDescending(c => c.CreatedAt)
         };
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var lowered = search.ToLower();
+            query = query.Where(c =>
+                c.Text.ToLower().Contains(lowered) ||
+                c.Movie.Title.ToLower().Contains(lowered) ||
+                c.User.LastName.ToLower().Contains(lowered) ||
+                c.User.FirstName.ToLower().Contains(lowered)
+                    
+            );
+        }
 
         int totalCount = await query.CountAsync();
 
@@ -272,6 +291,27 @@ public class CommentService : ICommentService
         .Include(r => r.User)
         .ToListAsync();
 
+    CommentDTO? parentCommentDTO = null;
+
+    if (comment.ParentCommentId.HasValue)
+    {
+        var parentEntity = await _context.Comments
+            .Include(pc => pc.User)
+            .FirstOrDefaultAsync(pc => pc.CommentId == comment.ParentCommentId.Value);
+
+        if (parentEntity != null)
+        {
+            parentCommentDTO = new CommentDTO
+            {
+                CommentId = parentEntity.CommentId,
+                Text = parentEntity.IsDeleted ? "Deleted" : parentEntity.Text,
+                Author = parentEntity.User != null
+                    ? $"{parentEntity.User.FirstName} {parentEntity.User.LastName}"
+                    : "N/A"
+            };
+        }
+    }
+    
     // Load quoted comment
     Comment? quotedCommentEntity = null;
     if (comment.QuotedCommentId.HasValue)
@@ -330,6 +370,7 @@ public class CommentService : ICommentService
         Username = comment.User?.Username ?? "Unknown",
         Author = comment.User != null ? $"{comment.User.FirstName} {comment.User.LastName}" : "N/A",
         ParentCommentId = comment.ParentCommentId,
+        ParentComment = parentCommentDTO, 
         QuotedCommentId = comment.QuotedCommentId,
         QuotedText = quotedCommentEntity?.Text,
         QuotedComment = quotedCommentDTO,

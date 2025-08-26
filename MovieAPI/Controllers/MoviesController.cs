@@ -38,6 +38,13 @@ namespace MovieAPI.Controllers
             var movies = await _movieService.GetNewMoviesAsync(page, pageSize);
             return Ok(movies);
         }
+        
+        [HttpGet("new-movies-count")]
+        public async Task<IActionResult> GetNewMoviesCount()
+        {
+            var count = await _movieService.GetNewMoviesCountAsync();
+            return Ok(new { count });
+        }
 
         [HttpGet("sorted")]
         public async Task<IActionResult> GetSortedMoviesAsync([FromQuery] string sortBy, int page, int pageSize,
@@ -138,6 +145,23 @@ namespace MovieAPI.Controllers
             return Ok(movies);
         }
         
+        [HttpGet("non-premiered")]
+        public async Task<ActionResult<List<MovieDTO>>> GetNonPremieredMovies()
+        {
+            var movies = await _movieService.GetNonPremieredMoviesAsync();
+            return Ok(movies);
+        }
+        
+        [HttpGet("{movieId}/related")]
+        public async Task<IActionResult> GetRelatedMovies(int movieId)
+        {
+            var relatedMovies = await _movieService.GetRelatedMoviesAsync(movieId, 6);
+            if (!relatedMovies.Any())
+                return NotFound();
+
+            return Ok(relatedMovies);
+        }
+        
          [HttpPost("recordView")]
         public async Task<IActionResult> RecordView([FromBody] int movieId) 
         {
@@ -202,8 +226,8 @@ namespace MovieAPI.Controllers
         {
             try
             {
-                var uniqueViews = await _movieService.GetAllMoviesMonthlyUniqueViewsAsync();
-                return Ok(uniqueViews);
+                var count = await _movieService.GetAllMoviesMonthlyUniqueViewsAsync();
+               return Ok(new { count });
             }
             catch (Exception)
             {

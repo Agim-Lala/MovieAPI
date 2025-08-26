@@ -5,7 +5,7 @@ namespace MovieAPI.Services;
 
 public interface ICommentService
 {
-    Task<(List<CommentDTO> Comments, int TotalCount)> GetSortedCommentsAsync(CommentSortOption sortBy, bool ascending = true, int page = 1, int pageSize = 10);   
+    Task<(List<CommentDTO> Comments, int TotalCount)> GetSortedCommentsAsync(CommentSortOption sortBy, bool ascending = true, int page = 1, int pageSize = 10, string search = null);   
     Task<CommentDTO> AddCommentAsync(CreateCommentDTO dto, int userId);
     Task<bool> DeleteCommentAsync(int commentId, int userId);
     Task<List<CommentDTO>> GetCommentsByUserAsync(int userId);
@@ -15,5 +15,6 @@ public interface ICommentService
     Task<CommentDTO?> UpdateCommentAsync(int commentId, UpdateCommentDTO dto, int userId);
     Task<bool> AdminDeleteCommentAsync(int commentId);
     Task<CommentDTO?> GetCommentByIdAsync(int commentId);
+    Task<int> GetNewCommentsCountAsync();
 
 }

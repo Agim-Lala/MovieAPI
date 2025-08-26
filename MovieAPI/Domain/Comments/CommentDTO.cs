@@ -14,6 +14,7 @@ public class CommentDTO
     public int MovieId { get; set; }
     public string MovieTitle { get; set; } = string.Empty;
     public int? ParentCommentId { get; set; }
+    public CommentDTO? ParentComment { get; set; } 
     public int? QuotedCommentId { get; set; }
     public string? QuotedText { get; set; } 
     public CommentDTO? QuotedComment { get; set; } 

@@ -40,6 +40,7 @@ namespace MovieAPI.Domain.Movies
         public double AverageRating { get; set; } 
         public bool IsVisible { get; set; } = true;  
         public int Views { get; set; } = 0;
+        public bool IsPremiered { get; set; } = true;
 
 
 

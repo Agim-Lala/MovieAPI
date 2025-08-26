@@ -24,6 +24,7 @@ namespace MovieAPI.Domain.Movies
         public string? CoverImage { get; set; }
         //public List<IFormFile>? GalleryImages {get; set;} 
         public string? VideoFile { get; set; }
+        public bool IsPremiered { get; set; } = true;
 
     }
 }

@@ -11,13 +11,21 @@ public class ReviewService : IReviewService
     public ReviewService(ApplicationDbContext context) => _context = context;
 
 
+    public async Task<int> GetNewReviewsCountAsync()
+    {
+        var firstDayOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        return await _context.Reviews.CountAsync(r => r.CreatedAt >= firstDayOfMonth);
+    }
+    
     public async Task<(List<ReviewDTO> Reviews, int TotalCount)> GetSortedReviewsAsync(ReviewSortOption sortBy,
-        bool ascending = true, int page = 1, int pageSize = 10)
+        bool ascending = true, int page = 1, int pageSize = 10, string search = null)
     {
         var query = _context.Reviews
             .Include(r => r.User)
             .Include(r => r.Movie)
             .AsQueryable();
+        
+       
 
         query = (sortBy, ascending) switch
         {
@@ -34,6 +42,16 @@ public class ReviewService : IReviewService
 
 
         };
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var lowered = search.ToLower();
+            query = query.Where(r =>
+                r.Text.ToLower().Contains(lowered) ||
+                r.Movie.Title.ToLower().Contains(lowered)
+                    
+            );
+        }
         int totalCount = await query.CountAsync();
         
         var reviews = await query
@@ -49,6 +67,14 @@ public class ReviewService : IReviewService
     
     public async Task<ReviewDTO> AddReviewAsync(CreateReviewDTO dto, int userId)
     {
+        var existingReview = await _context.Reviews
+            .FirstOrDefaultAsync(r => r.MovieId == dto.MovieId && r.UserId == userId);
+
+        if (existingReview != null)
+        {
+            throw new InvalidOperationException("User has already submitted a review for this movie.");
+        }
+
         var review = new Review {
             MovieId   = dto.MovieId,
             UserId    = userId,
@@ -56,25 +82,34 @@ public class ReviewService : IReviewService
             Rating    = dto.Rating,
             CreatedAt = DateTime.UtcNow
         };
+
         _context.Reviews.Add(review);
-        await _context.SaveChangesAsync(); // Save the review first
 
-        var movie = await _context.Movies.FindAsync(dto.MovieId);
-        if (movie == null) throw new Exception("Movie not found");
+       
+        await _context.SaveChangesAsync();
+        await CalculateAverageRatingAsync(dto.MovieId);
+        review.User = await _context.Users.FindAsync(userId);
 
-        movie.AverageRating = await _context.Reviews
-            .Where(r => r.MovieId == dto.MovieId)
-            .AverageAsync(r => r.Rating); 
-      
+        return MapToDto(review);
+    }
 
+    public async Task<ReviewDTO> UpdateReviewAsync(int reviewId, int userId, UpdateReviewDTO dto)
+    {
+        var review = await _context.Reviews.FindAsync(reviewId);
+        if (review == null) return null;
 
-        await _context.SaveChangesAsync(); 
+        if (review.UserId != userId)
+            throw new UnauthorizedAccessException("You cannot edit this review.");
 
+        review.Text = dto.Text;
+        review.Rating = dto.Rating;
+        review.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
         
-        var user = await _context.Users.FindAsync(userId);
-        review.User = user;
+        await CalculateAverageRatingAsync(review.MovieId);
 
-
+        review.User = await _context.Users.FindAsync(userId);
         return MapToDto(review);
     }
 
@@ -90,6 +125,19 @@ public class ReviewService : IReviewService
        return reviews.Select(r => MapToDto(r)).ToList();
     }
 
+    public async Task<ReviewDTO> GetReviewById(int reviewId)
+    {
+        var review = await _context.Reviews
+            .Where(r => r.ReviewId == reviewId)
+            .Include(r => r.User)
+            .Include(r => r.Movie)
+            .FirstOrDefaultAsync();
+
+        if (review == null) return null;
+
+        return MapToDto(review);
+    }
+
     public async Task<List<ReviewDTO>> GetReviewsByUserAsync(int userId)
     {
         var reviews =  await _context.Reviews
@@ -101,48 +149,13 @@ public class ReviewService : IReviewService
        
         return reviews.Select(r => MapToDto(r)).ToList();
     }
-
-    public async Task<bool> ReactToReviewAsync(int reviewId, int userId, bool isLike)
-    {
-        var review = await _context.Reviews
-            .Include(r => r.Reactions)
-            .FirstOrDefaultAsync(r => r.ReviewId == reviewId);
-        
-        if(review == null) return false;
-        
-        var existingReaction =  review.Reactions.FirstOrDefault(r => r.UserId == userId);
-
-        if (existingReaction != null)
-        {
-            if (existingReaction.IsLike == isLike)
-            {
-                _context.ReviewReactions.Remove(existingReaction);
-            }
-            else
-            {
-                existingReaction.IsLike = isLike;
-                existingReaction.ReactedAt = DateTime.UtcNow;
-            }
-        }
-        else
-        {
-            _context.ReviewReactions.Add(new ReviewReaction
-            {
-                ReviewId = reviewId,
-                UserId = userId,
-                IsLike = isLike
-            });
-        }
-        await _context.SaveChangesAsync();
-        return true;
-    }
+    
 
     public async Task<ReviewDTO> GetReviewByIdAsync(int reviewID)
     {
         var review = await _context.Reviews
             .Include(r => r.User)
             .Include(r =>r.Movie)
-            .Include(r => r.Reactions)
             .FirstOrDefaultAsync(r => r.ReviewId == reviewID);
         
         if (review == null) return null;
@@ -171,8 +184,12 @@ public class ReviewService : IReviewService
         var review = await _context.Reviews.FindAsync(id);
         if (review == null) return false;
 
+        int movieId = review.MovieId;
+        
         _context.Reviews.Remove(review);
         await _context.SaveChangesAsync();
+
+        await CalculateAverageRatingAsync(movieId);
 
         return true;
     }
@@ -180,8 +197,6 @@ public class ReviewService : IReviewService
 
     private ReviewDTO MapToDto(Review review)
     {
-        int likeCount = review.Reactions?.Count(r => r.IsLike) ?? 0;
-        int dislikeCount = review.Reactions?.Count(r => !r.IsLike) ?? 0;
         return new ReviewDTO
         {
             ReviewId = review.ReviewId,
@@ -193,10 +208,25 @@ public class ReviewService : IReviewService
             Text = review.Text,
             Rating = review.Rating,
             CreatedAt = review.CreatedAt,
-            LikeDislikeText = $"{likeCount}/{dislikeCount}"
-
-            
-            
         };
+    }
+
+    private async Task CalculateAverageRatingAsync(int movieId)
+    {
+        var movie = await _context.Movies.FindAsync(movieId);
+        if (movie ==  null) return;
+
+        var hasReviews = await _context.Reviews.AnyAsync(r => r.MovieId == movieId);
+
+        double average = 0;
+        if (hasReviews)
+        {
+            average = await _context.Reviews
+                .Where(r => r.MovieId == movieId)
+                .AverageAsync(r => r.Rating);
+        }
+
+        movie.AverageRating = Math.Round(average,1);
+        await _context.SaveChangesAsync();
     }
 }

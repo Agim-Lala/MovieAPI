@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System.Net;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MovieAPI.Domain.Reviews;
@@ -21,7 +22,29 @@ public class ReviewsController : ControllerBase {
         var created = await _service.AddReviewAsync(dto, uid);
         return CreatedAtAction(nameof(GetByMovie), new { movieId = dto.MovieId }, created);
     }
+    [HttpPut("{id}")]
+    [Authorize] 
+    public async Task<IActionResult> UpdateReview(int id, [FromBody] UpdateReviewDTO dto)
+    {
+        var uid = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        try
+        {
+            var updated = await _service.UpdateReviewAsync(id, uid, dto);
+            if (updated == null) return NotFound();
+            return Ok(updated);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+    }
 
+    [HttpGet("new-reviews-count")]
+    public async Task<IActionResult> GetNewReviewsCount()
+    {
+        var count = await _service.GetNewReviewsCountAsync();
+        return Ok(new{count});
+    }
     
     [HttpGet("movie/{movieId}")]
     public async Task<ActionResult<List<ReviewDTO>>> GetByMovie(int movieId) {
@@ -42,38 +65,28 @@ public class ReviewsController : ControllerBase {
         return Ok(list);
     }
 
+    [HttpGet("{reviewId}")]
+    public async Task<IActionResult> GetReviewById(int reviewId)
+    {
+        var review = await _service.GetReviewByIdAsync(reviewId);
+        return Ok(review);
+    }
+
     [HttpGet("sorted")]
     public async Task<IActionResult> GetSortedReviewsAsync([FromQuery] string sortBy, int page, int pageSize,
-        [FromQuery] bool ascending = true)
+        [FromQuery] bool ascending = true,
+        [FromQuery] string query = null
+        )
     {
         if (!Enum.TryParse<ReviewSortOption>(sortBy, true, out var sortOption))
         {
             return BadRequest($"Invalid sort option: {sortBy}. Valid options are: {string.Join(", ", Enum.GetNames(typeof(ReviewSortOption)))}");
         }
 
-        var (reviews, totalCount) = await _service.GetSortedReviewsAsync(sortOption, ascending, page, pageSize);
+        var (reviews, totalCount) = await _service.GetSortedReviewsAsync(sortOption, ascending, page, pageSize, query);
         return Ok(new {reviews,totalCount});
     }
-
-    [Authorize]
-    [HttpPost("{reviewId}/react")]
-
-    public async Task<IActionResult> ReactToReview(int reviewId, [FromBody] bool isLike)
-    {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        
-        var success = await _service.ReactToReviewAsync(reviewId, userId, isLike);
-        
-        if (!success)
-            return NotFound();
-
-        var updatedReview = await _service.GetReviewByIdAsync(reviewId);
-        
-        return Ok(updatedReview);
-
-        
-
-    }
+    
     
     [HttpDelete("{id}")]
     public async Task<ActionResult> DeleteReview(int id)
