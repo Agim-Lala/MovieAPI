@@ -11,11 +11,10 @@ public interface IReviewService
     Task<List<ReviewDTO>> GetReviewsByUserAsync(int userId);
     Task<double> GetAverageRatingAsync(int movieId);
 
-    Task<(List<ReviewDTO> Reviews, int TotalCount)> GetSortedReviewsAsync(ReviewSortOption sortBy,bool ascending = true, int page = 1, int pageSize = 10);
-    
-    Task<bool>ReactToReviewAsync(int reviewId, int userId, bool isLike);
-
+    Task<(List<ReviewDTO> Reviews, int TotalCount)> GetSortedReviewsAsync(ReviewSortOption sortBy,bool ascending = true, int page = 1, int pageSize = 10, string search = null);
     Task<ReviewDTO> GetReviewByIdAsync(int reviewID);
-
+    Task<int> GetNewReviewsCountAsync();
     Task<bool> DeleteReviewAsync(int id);
+    Task<ReviewDTO> UpdateReviewAsync(int reviewId, int userId, UpdateReviewDTO dto);
+
 }

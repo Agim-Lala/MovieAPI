@@ -5,7 +5,7 @@ public class SubscriptionPlan
     public int Id { get; set; }
     public string Name { get; set; } = null!;
     public decimal Price { get; set; }
-    public string Duration { get; set; } = null!;
+    public int DurationInDays { get; set; }
     public string Resolution { get; set; } = null!;
     public bool LifetimeAvailability { get; set; }
     public string DeviceAccess { get; set; } = null!;

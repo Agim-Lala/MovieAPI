@@ -17,7 +17,6 @@ public class User
     public ICollection<Comment> Comments { get; set; } = new List<Comment>();
     public ICollection<CommentReaction> CommentReactions { get; set; } = new List<CommentReaction>();
     public ICollection<Review> Reviews { get; set; } = new List<Review>();
-    public ICollection<ReviewReaction> Reactions { get; set; } = new List<ReviewReaction>();  
     public int SubscriptionPlanId { get; set; }
     public SubscriptionPlan SubscriptionPlan { get; set; } = null!;
     public DateTime SubscriptionStartDate { get; set; }

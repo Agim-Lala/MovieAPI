@@ -26,5 +26,6 @@
         
         public string Link { get; set; }
         public int Views { get; set; } 
+        public bool IsPremiered { get; set; }
     }
 }

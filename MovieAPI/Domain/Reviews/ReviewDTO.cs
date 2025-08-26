@@ -16,9 +16,4 @@ public class ReviewDTO
 
     public string Author { get; set; }  
     
-    public int LikeCount { get; set; }
-    public int DislikeCount { get; set; }
-    
-    public string LikeDislikeText { get; set; } = "";
-    
 }

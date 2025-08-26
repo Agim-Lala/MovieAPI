@@ -1,4 +1,5 @@
-﻿using System.Security.Claims;
+﻿using System.Collections.Immutable;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using MovieAPI.Context;
 using MovieAPI.Domain.Users;
@@ -18,7 +19,7 @@ public class AuthService : IAuthService
     }
 
     public async Task<(List<UserDto> Users, int TotalCount)> GetSortedUsersAsync(UserSortOption sortBy,
-        bool ascending = true, int page = 1, int pageSize = 10)
+        bool ascending = true, int page = 1, int pageSize = 10 , string search =null)
     {
         var query = _context.Users.AsQueryable();
 
@@ -43,6 +44,16 @@ public class AuthService : IAuthService
 
             _ => query.OrderBy(u => u.Id)
         };
+        
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var lowered = search.ToLower();
+            query = query.Where(u =>
+                u.Username.ToLower().Contains(lowered) ||
+                u.FirstName.ToLower().Contains(lowered) ||
+                u.LastName.ToLower().Contains(lowered)
+            );
+        }
 
         int totalCount = await query.CountAsync();
         
@@ -96,8 +107,11 @@ public class AuthService : IAuthService
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
         if (user == null || !_authHelper.VerifyPassword(user.PasswordHash, dto.Password)) 
             throw new Exception("Invalid credentials");
+        
+        if (user.Status == UserStatus.Banned)
+            throw new Exception("Your account has been banned. Please contact support.");
 
-        return _authHelper.GenerateToken(user); // Generating token here
+        return _authHelper.GenerateToken(user); 
     }
     
     public async Task<UserDto> GetMeAsync(ClaimsPrincipal userClaims)
@@ -239,6 +253,45 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
         return user.Status;
     }
+
+    public async Task<List<SubscriptionPlanDTO>> GetAvailablePlansForUserAsync(int? userId = null)
+    {
+        var plans = await _context.SubscriptionPlans
+            .Select(p => new SubscriptionPlanDTO
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Price = p.Price,
+                DurationInDays = p.DurationInDays,
+                Resolution = p.Resolution,
+                LifetimeAvailability = p.LifetimeAvailability,
+                DeviceAccess = p.DeviceAccess,
+                SupportLevel = p.SupportLevel
+            })
+            .OrderBy(p =>p.Price)
+            .ToListAsync();
+
+        if (userId == null)
+        {
+            return plans;
+        }
+
+      
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+        {
+            // user not found → behave as if not logged in
+            return plans;
+        }
+
+        // Case 3: user has a plan → exclude it
+        if (user.SubscriptionPlanId != 0)
+        {
+            plans = plans.Where(p => p.Id != user.SubscriptionPlanId).ToList();
+        }
+
+        return plans;
+    }
     
     public async Task AssignSubscriptionToUserAsync(int userId, int planId)
     {
@@ -251,7 +304,7 @@ public class AuthService : IAuthService
         user.SubscriptionStartDate = DateTime.UtcNow;
         user.SubscriptionEndDate = plan.LifetimeAvailability
             ? null
-            : DateTime.UtcNow.AddDays(ParseDurationInDays(plan.Duration));
+            : DateTime.UtcNow.AddDays(plan.DurationInDays);
 
         await _context.SaveChangesAsync();
     }

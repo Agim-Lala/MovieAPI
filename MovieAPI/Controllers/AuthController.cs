@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MovieAPI.Domain.Users;
 using MovieAPI.Enums;
@@ -19,14 +20,16 @@ public class AuthController : ControllerBase
 
     [HttpGet("sorted")]
     public async Task<IActionResult> GetSortedUsersAsync([FromQuery] string sortBy, int page, int pageSize,
-        [FromQuery] bool ascending = true)
+        [FromQuery] bool ascending = true,
+        [FromQuery] string query = null
+        )
     {
         if (!Enum.TryParse<UserSortOption>(sortBy, true, out var sortOption))
         {
             return BadRequest($"Invalid sort option: {sortBy}. Valid options are: {string.Join(", ", Enum.GetNames(typeof(UserSortOption)))}");
         }
 
-        var (users, totalCount) = await _authService.GetSortedUsersAsync(sortOption, ascending, page, pageSize);
+        var (users, totalCount) = await _authService.GetSortedUsersAsync(sortOption, ascending, page, pageSize, query);
         return Ok(new {users,totalCount});
     }
     
@@ -45,8 +48,15 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginDto dto)
     {
-        var token = await _authService.LoginAsync(dto);
-        return Ok(new { token });
+        try
+        {
+            var token = await _authService.LoginAsync(dto);
+            return Ok(new { token });
+        }
+        catch (Exception ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
     }
     
     [Authorize]
@@ -100,6 +110,13 @@ public class AuthController : ControllerBase
     {
         await _authService.AssignSubscriptionToUserAsync(id, planId);
         return Ok(new { message = "Subscription updated" });
+    }
+    
+    [HttpGet("subscription-plans")]
+    public async Task<ActionResult<List<SubscriptionPlanDTO>>> GetSubscriptionPlans([FromQuery] int? userId = null)
+    {
+        var plans = await _authService.GetAvailablePlansForUserAsync(userId);
+        return Ok(plans);
     }
     
     [HttpPatch("{id}/status")]

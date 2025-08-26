@@ -22,5 +22,4 @@ public class Review
     public int MovieId { get; set; }
     public Movie Movie { get; set; }
     
-    public ICollection<ReviewReaction>Reactions { get; set; } = new List<ReviewReaction>();
 }

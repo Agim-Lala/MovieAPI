@@ -28,4 +28,6 @@ public class GetMovieByIdDTO
     public int RunningTime { get; set; }
     public int Age { get; set; }
     public string Country { get; set; }
+    public bool IsPremiered { get; set; }
+    public bool IsVisible { get; set; }
 }

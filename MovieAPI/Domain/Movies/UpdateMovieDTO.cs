@@ -17,4 +17,5 @@ public class UpdateMovieDTO
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public string? CoverImage { get; set; }
     public string? VideoFile { get; set; }
+    public bool IsPremiered { get; set; }
 }

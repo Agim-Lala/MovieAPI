@@ -244,6 +244,9 @@ namespace MovieAPI.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsPremiered")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsVisible")
                         .HasColumnType("boolean");
 
@@ -367,36 +370,6 @@ namespace MovieAPI.Migrations
                     b.ToTable("Reviews");
                 });
 
-            modelBuilder.Entity("MovieAPI.Domain.Reviews.ReviewReaction", b =>
-                {
-                    b.Property<int>("ReviewReactionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ReviewReactionId"));
-
-                    b.Property<bool>("IsLike")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("ReactedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("ReviewId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ReviewReactionId");
-
-                    b.HasIndex("ReviewId");
-
-                    b.HasIndex("UserId", "ReviewId")
-                        .IsUnique();
-
-                    b.ToTable("ReviewReactions");
-                });
-
             modelBuilder.Entity("MovieAPI.Domain.Users.SubscriptionPlan", b =>
                 {
                     b.Property<int>("Id")
@@ -409,9 +382,8 @@ namespace MovieAPI.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Duration")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("DurationInDays")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("LifetimeAvailability")
                         .HasColumnType("boolean");
@@ -684,25 +656,6 @@ namespace MovieAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("MovieAPI.Domain.Reviews.ReviewReaction", b =>
-                {
-                    b.HasOne("MovieAPI.Domain.Reviews.Review", "Review")
-                        .WithMany("Reactions")
-                        .HasForeignKey("ReviewId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("MovieAPI.Domain.Users.User", "User")
-                        .WithMany("Reactions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Review");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("MovieAPI.Domain.Users.User", b =>
                 {
                     b.HasOne("MovieAPI.Domain.Users.SubscriptionPlan", "SubscriptionPlan")
@@ -782,11 +735,6 @@ namespace MovieAPI.Migrations
                     b.Navigation("MovieQualities");
                 });
 
-            modelBuilder.Entity("MovieAPI.Domain.Reviews.Review", b =>
-                {
-                    b.Navigation("Reactions");
-                });
-
             modelBuilder.Entity("MovieAPI.Domain.Users.SubscriptionPlan", b =>
                 {
                     b.Navigation("Users");
@@ -797,8 +745,6 @@ namespace MovieAPI.Migrations
                     b.Navigation("CommentReactions");
 
                     b.Navigation("Comments");
-
-                    b.Navigation("Reactions");
 
                     b.Navigation("Reviews");
                 });

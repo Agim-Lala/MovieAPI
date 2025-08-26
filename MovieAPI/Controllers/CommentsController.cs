@@ -18,12 +18,22 @@ public class CommentsController : ControllerBase
         _commentService = commentService;
     }
 
+    [HttpGet("new-comments-count")]
+
+    public async Task<IActionResult> GetNewCommentCount()
+    {
+        var count = await _commentService.GetNewCommentsCountAsync();
+        return Ok(new { count });
+    }
+
     [HttpGet("sorted")]
     public async Task<IActionResult> GetSortedCommentsAsync(
         [FromQuery] string sortBy,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
-        [FromQuery] bool ascending = true)
+        [FromQuery] bool ascending = true,
+        [FromQuery] string query = null
+        )
     {
         if (!Enum.TryParse<CommentSortOption>(sortBy, true, out var sortOption))
         {
@@ -32,7 +42,7 @@ public class CommentsController : ControllerBase
         }
 
         var (comments, totalCount) =
-            await _commentService.GetSortedCommentsAsync(sortOption, ascending, page, pageSize);
+            await _commentService.GetSortedCommentsAsync(sortOption, ascending, page, pageSize, query);
         return Ok(new { comments, totalCount });
     }
     [HttpGet("{commentId}")]

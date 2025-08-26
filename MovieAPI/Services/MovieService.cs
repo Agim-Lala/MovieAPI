@@ -51,6 +51,7 @@ namespace MovieAPI.Services
                 );
             }
 
+            
 
             // Apply sorting
             moviesQuery = (sortBy, ascending) switch
@@ -93,7 +94,7 @@ namespace MovieAPI.Services
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Where(m => m.IsVisible)
+                .Where(m => m.IsVisible && m.IsPremiered)
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -112,7 +113,7 @@ namespace MovieAPI.Services
                 .ThenInclude(mq => mq.Quality)
                 .Include(m => m.Director)
                 .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
-                .Where(m => m.IsVisible)
+                .Where(m => m.IsVisible && m.IsPremiered)
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -161,7 +162,9 @@ namespace MovieAPI.Services
                 RunningTime = movie.RunningTime,
                 Age = movie.Age,
                 Country = movie.Country,
-                Link = movie.Link
+                Link = movie.Link,
+                IsPremiered = movie.IsPremiered,
+                IsVisible = movie.IsVisible
             };
         }
 
@@ -197,7 +200,8 @@ namespace MovieAPI.Services
                 MovieGenres   = dto.GenreIds.Select(id => new MovieGenre { GenreId = id }).ToList(),
                 MovieCategories = dto.CategoryIds.Select(id => new MovieCategory { CategoryId = id }).ToList(),
                 MovieQualities = dto.QualityIds.Select(id => new MovieQuality { QualityId = id }).ToList(),
-                MovieActors   = dto.ActorIds.Select(id => new MovieActor { ActorId = id }).ToList()
+                MovieActors   = dto.ActorIds.Select(id => new MovieActor { ActorId = id }).ToList(),
+                IsPremiered    = dto.IsPremiered
             };
 
             _context.Movies.Add(movie);
@@ -221,6 +225,7 @@ namespace MovieAPI.Services
                     Country      = m.Country,
                     Age          = m.Age, 
                     IsVisible    = m.IsVisible,
+                    IsPremiered = m.IsPremiered
                     
                 })
                 .FirstAsync();
@@ -254,6 +259,7 @@ namespace MovieAPI.Services
             movie.Country = dto.Country;
             movie.Age = dto.Age;
             movie.Link = dto.Link;
+            movie.IsPremiered = dto.IsPremiered;
             
             if (dto.CoverImage != null)
             {
@@ -295,7 +301,8 @@ namespace MovieAPI.Services
                 Qualities = movie.MovieQualities.Select(mq => mq.Quality.QualityName).ToList(),
                 IsVisible = movie.IsVisible,
                 ImagePath = movie.ImagePath,
-                Link = movie.Link
+                Link = movie.Link,
+                IsPremiered = movie.IsPremiered,
                 
                 
             };
@@ -333,6 +340,7 @@ namespace MovieAPI.Services
                 .Include(m => m.Director)
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .Where(m => m.IsVisible && m.IsPremiered)
                 .ToListAsync();
 
             return movies.Select(MapToDTO).ToList();
@@ -383,7 +391,7 @@ namespace MovieAPI.Services
                 .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
                 .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
                 .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
-                .Where(m => m.IsVisible)
+                .Where(m => m.IsVisible && m.IsPremiered)
                 .AsQueryable();
 
             if (genreId.HasValue)
@@ -421,6 +429,71 @@ namespace MovieAPI.Services
             return movies.Select(MapToDTO).ToList();
         }
         
+        public async Task<List<MovieDTO>> GetNonPremieredMoviesAsync()
+        {
+            var movies = await _context.Movies
+                .Where(m => !m.IsPremiered && m.IsVisible)
+                .Include(m => m.Director)
+                .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+                .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+                .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
+                .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+                .ToListAsync();
+
+            return movies.Select(MapToDTO).ToList();
+        }
+        
+        public async Task<List<MovieDTO>> GetRelatedMoviesAsync(int movieId, int count = 6)
+{
+    // Get the current movie with categories and genres
+    var movie = await _context.Movies
+        .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+        .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+        .Include(m => m.Director)
+        .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
+        .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+        .FirstOrDefaultAsync(m => m.MovieId == movieId);
+
+    if (movie == null)
+        return new List<MovieDTO>();
+
+    // Pick the main category
+    var mainCategoryId = movie.MovieCategories.First().CategoryId;
+
+    // Fetch movies in the same category
+    var relatedMovies = await _context.Movies
+        .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+        .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+        .Include(m => m.Director)
+        .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
+        .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+        .Where(m => m.MovieId != movieId &&
+                    m.MovieCategories.Any(mc => mc.CategoryId == mainCategoryId))
+        .OrderByDescending(m => m.Views)
+        .Take(count)
+        .ToListAsync();
+
+    // Fill remaining slots with other movies if needed
+    if (relatedMovies.Count < count)
+    {
+        var additionalMovies = await _context.Movies
+            .Include(m => m.MovieCategories).ThenInclude(mc => mc.Category)
+            .Include(m => m.MovieGenres).ThenInclude(mg => mg.Genre)
+            .Include(m => m.Director)
+            .Include(m => m.MovieActors).ThenInclude(ma => ma.Actor)
+            .Include(m => m.MovieQualities).ThenInclude(mq => mq.Quality)
+            .Where(m => m.MovieId != movieId &&
+                        !relatedMovies.Select(r => r.MovieId).Contains(m.MovieId))
+            .Take(count - relatedMovies.Count)
+            .ToListAsync();
+
+        relatedMovies.AddRange(additionalMovies);
+    }
+
+    // Map to DTOs using your existing MapToDTO method
+    return relatedMovies.Select(MapToDTO).ToList();
+}
+    
         public async Task<bool?> ToggleMovieVisibilityAsync(int id)
         {
             var movie = await _context.Movies.FindAsync(id);
@@ -469,11 +542,16 @@ namespace MovieAPI.Services
                 .Where(umw => umw.WatchedAt >= startOfMonth && umw.WatchedAt < startOfNextMonth)
                 .GroupBy(umw => umw.MovieId)
                 .Select(g => g.Select(x => x.UserId).Distinct().Count())
-                .SumAsync();
+                .CountAsync();
 
             return uniqueViews;
         }
         
+        public async Task<int> GetNewMoviesCountAsync()
+        {
+            var firstDayOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            return await _context.Movies.CountAsync(m => m.AddedAt >= firstDayOfMonth);
+        }
         private MovieDTO MapToDTO(Movie movie) => new MovieDTO
         {
             MovieId = movie.MovieId,
@@ -494,7 +572,8 @@ namespace MovieAPI.Services
             Link = movie.Link,
             AverageRating = movie.AverageRating,
             IsVisible = movie.IsVisible,
-            Views = movie.Views
+            Views = movie.Views,
+            IsPremiered = movie.IsPremiered
         };
         
 
